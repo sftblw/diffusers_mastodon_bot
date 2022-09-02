@@ -31,7 +31,7 @@ class AppStreamListener(mastodon.StreamListener):
         self.diffusers_pipeline = diffusers_pipeline
 
         self.strippers = [
-            re.compile('@[a-zA-Z0-9_-]+'),
+            re.compile('@[a-zA-Z0-9._-]+'),
             re.compile('#[a-zA-Z0-9_-]+'),
             re.compile('[ \r\n\t]+'),
         ]
