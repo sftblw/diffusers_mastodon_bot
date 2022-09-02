@@ -1,0 +1,6 @@
+diffusers
+transformers
+mastodon.py
+ftfy
+spacy
+pillow
