@@ -46,7 +46,7 @@ class AppStreamListener(mastodon.StreamListener):
         atexit.register(exit_toot)
 
         print('listening')
-        mastodon.status_post(f'listening (diffusers_mastodon_bot)\n\nsend me a prompt with hashtag #{tag_name}',
+        mastodon.status_post(f'listening (diffusers_mastodon_bot)\n\nsend me a prompt with hashtag # {tag_name}',
                              visibility=default_visibility)
 
     def on_update(self, status: Dict[str, any]):
