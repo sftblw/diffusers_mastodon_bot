@@ -29,10 +29,6 @@ mention to target acct user with tag, hardcoded are:
 @diffuse_bot@example.com #diffuse_me prompt text shown in dark monitor in parking lot
 ```
 
-## misc
-
-listening to user stream is intentional, for self-sending.
-
 ## config examples
 
 ### `config/proc_kwargs.json`
