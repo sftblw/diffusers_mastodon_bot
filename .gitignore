@@ -1,6 +1,7 @@
 venv
 diffused_results
-access_token.token
-endpoint_url.txt
+
+config/**/*
+!config/.gitkeep
 
 .idea

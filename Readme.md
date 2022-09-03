@@ -8,9 +8,12 @@ a quick and dirty bot, running stable diffuser, via huggingface diffusers
 - install pytorch, via pip, enabling nvidia
 - `pip install -r requirements.txt`
 - `huggingface-cli login` (see hf diffusers)
-- create app from account setting
-  - `access_token.token`
-  - `endpoint_url.txt`
+- create app from account setting, fill these text files
+  - `config/access_token.txt`
+  - `config/endpoint_url.txt` ex) `https://mastodon.social
+  - optional
+    - `config/toot_listen_start.txt`: toot content on listening start
+    - `config/toot_listen_end.txt`: toot content on listening end (exit)
 - `python -m diffusers_mastodon_bot.main`
 
 ## use
