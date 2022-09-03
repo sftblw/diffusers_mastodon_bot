@@ -133,6 +133,7 @@ class AppStreamListener(mastodon.StreamListener):
         filename_root = datetime.now().strftime('%Y-%m-%d') + f'_{str(start_time)}'
 
         generated_image_paths = []
+        has_any_nsfw = False
 
         proc_kwargs = self.proc_kwargs if self.proc_kwargs is not None else {}
         with autocast(self.device):
@@ -153,6 +154,9 @@ class AppStreamListener(mastodon.StreamListener):
 
                 generated_image_paths.append(image_filename)
 
+                if nsfw_content_detected:
+                    has_any_nsfw = True
+
         if self.delete_processing_message:
             self.mastodon.status_delete(in_progress_status['id'])
 
@@ -168,7 +172,7 @@ class AppStreamListener(mastodon.StreamListener):
         if self.proc_kwargs is not None and 'num_inference_steps' in self.proc_kwargs:
             reply_message += '\n\n' + f'inference steps: {self.proc_kwargs["num_inference_steps"]}'
 
-        if nsfw_content_detected:
+        if has_any_nsfw:
             reply_message += '\n\n' + 'nsfw content detected, some of result will be a empty image'
 
         reply_message += '\n\n' + f'prompt: \n{content_txt}'
