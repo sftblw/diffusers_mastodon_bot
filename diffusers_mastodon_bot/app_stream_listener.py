@@ -28,12 +28,14 @@ class AppStreamListener(mastodon.StreamListener):
                  image_count=1,
                  device: str = 'cuda',
                  toot_on_start_end=True,
+                 no_image_on_any_nsfw=True,
                  proc_kwargs: Union[None, Dict[str, any]] = None):
         self.mastodon: Mastodon = mastodon_client
         self.mention_to_url = mention_to_url
         self.tag_name = tag_name
         self.diffusers_pipeline = diffusers_pipeline
         self.output_save_path = output_save_path
+        self.no_image_on_any_nsfw = no_image_on_any_nsfw
 
         self.delete_processing_message = delete_processing_message
         self.image_count = image_count if 1 <= image_count <= 4 else 1
@@ -186,9 +188,13 @@ class AppStreamListener(mastodon.StreamListener):
         if len(reply_message) > 500:
             reply_message = reply_message[0:480] + '...'
 
+        media_ids = [image_posted['id'] for image_posted in images_list_posted]
+        if has_any_nsfw and self.no_image_on_any_nsfw:
+            media_ids = None
+
         reply_target_status = status if self.delete_processing_message else in_progress_status
         self.mastodon.status_reply(reply_target_status, reply_message,
-                                   media_ids=[image_posted['id'] for image_posted in images_list_posted],
+                                   media_ids=media_ids,
                                    visibility=reply_visibility,
                                    sensitive=True
                                    )
