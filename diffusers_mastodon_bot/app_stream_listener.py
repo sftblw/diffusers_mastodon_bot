@@ -104,6 +104,7 @@ class AppStreamListener(mastodon.StreamListener):
 
         image_filename = self.output_save_path + '/' + filename_root + '.png'
         text_filename = self.output_save_path + '/' + filename_root + '.txt'
+
         with autocast(self.device):
             proc_kwargs = self.proc_kwargs if self.proc_kwargs is not None else {}
 
@@ -123,6 +124,9 @@ class AppStreamListener(mastodon.StreamListener):
         time_took = int(time_took * 1000) / 1000
 
         reply_message = f'took: {time_took}s'
+
+        if self.proc_kwargs is not None and 'num_inference_steps' in self.proc_kwargs:
+            reply_message += '\n\n' + f'inference steps: {self.proc_kwargs["num_inference_steps"]}'
 
         if nsfw_content_detected:
             reply_message += '\n\n' + 'nsfw content detected, result will be a empty image'
