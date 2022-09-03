@@ -10,9 +10,6 @@ from diffusers import StableDiffusionPipeline
 from diffusers_mastodon_bot.app_stream_listener import AppStreamListener
 
 
-
-
-
 def create_diffusers_pipeline():
     pipe = StableDiffusionPipeline.from_pretrained(
         "CompVis/stable-diffusion-v1-4",
@@ -33,6 +30,8 @@ def read_text_file(filename: str) -> Union[str, None]:
     content = path.read_text().strip()
     if len(content) == 0:
         return None
+
+    return content
 
 
 if __name__ == '__main__':
