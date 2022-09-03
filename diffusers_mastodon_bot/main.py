@@ -42,6 +42,14 @@ def read_text_file(filename: str) -> Union[str, None]:
     return content
 
 
+def load_json_dict(filename: str) -> Union[None, Dict[str, any]]:
+    result = read_text_file(filename)
+    if result is not None:
+        return json.loads(result)
+    else:
+        return None
+
+
 def main():
     access_token = read_text_file('./config/access_token.txt')
     endpoint_url = read_text_file('./config/endpoint_url.txt')
@@ -57,9 +65,10 @@ def main():
     toot_listen_start = read_text_file('./config/toot_listen_start.txt')
     toot_listen_end = read_text_file('./config/toot_listen_end.txt')
 
-    proc_kwargs = read_text_file('./config/proc_kwargs.json')
-    if proc_kwargs is not None:
-        proc_kwargs = json.loads(proc_kwargs)
+    proc_kwargs = load_json_dict('./config/proc_kwargs.json')
+    app_stream_listener_kwargs = load_json_dict('./config/app_stream_listener_kwargs.json')
+    if app_stream_listener_kwargs is None:
+        app_stream_listener_kwargs = {}
 
     print('starting')
     mastodon = Mastodon(
@@ -84,7 +93,8 @@ def main():
                                  toot_listen_start=toot_listen_start,
                                  toot_listen_end=toot_listen_end,
                                  device=device_name,
-                                 proc_kwargs=proc_kwargs
+                                 proc_kwargs=proc_kwargs,
+                                 **app_stream_listener_kwargs
                                  )
 
     mastodon.stream_user(listener, run_async=False, timeout=10000)

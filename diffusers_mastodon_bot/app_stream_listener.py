@@ -24,6 +24,7 @@ class AppStreamListener(mastodon.StreamListener):
                  default_visibility='unlisted', output_save_path='./diffused_results',
                  toot_listen_start: Union[str, None] = None, toot_listen_end: Union[str, None] = None,
                  delete_processing_message=False,
+                 image_count=1,
                  device: str = 'cuda',
                  proc_kwargs: Union[None, Dict[str, any]] = None):
         self.mastodon: Mastodon = mastodon_client
@@ -33,6 +34,7 @@ class AppStreamListener(mastodon.StreamListener):
         self.output_save_path = output_save_path
 
         self.delete_processing_message = delete_processing_message
+        self.image_count = image_count if 1 <= image_count <= 4 else 1
 
         self.proc_kwargs = proc_kwargs
         self.device = device
@@ -121,29 +123,39 @@ class AppStreamListener(mastodon.StreamListener):
         print('starting')
 
         start_time = time.time()
+        time_took = 0
 
         filename_root = datetime.now().strftime('%Y-%m-%d') + f'_{str(start_time)}'
 
-        image_filename = self.output_save_path + '/' + filename_root + '.png'
-        text_filename = self.output_save_path + '/' + filename_root + '.txt'
+        generated_image_paths = []
 
         proc_kwargs = self.proc_kwargs if self.proc_kwargs is not None else {}
         with autocast(self.device):
-            pipe_result = self.diffusers_pipeline(content_txt, **proc_kwargs)
-            image: Image = pipe_result["sample"][0]
-            nsfw_content_detected: bool = pipe_result['nsfw_content_detected'][0]
+            for idx in range(self.image_count):
+                image_filename = self.output_save_path + '/' + filename_root + f'_{idx}' + '.png'
+                text_filename = self.output_save_path + '/' + filename_root + f'_{idx}' + '.txt'
 
-            end_time = time.time()
+                pipe_result = self.diffusers_pipeline(content_txt, **proc_kwargs)
 
-            image.save(image_filename, "PNG")
-            Path(text_filename).write_text(content_txt)
+                end_time = time.time()
+                time_took += end_time - start_time
+
+                image: Image = pipe_result["sample"][0]
+                nsfw_content_detected: bool = pipe_result['nsfw_content_detected'][0]
+
+                image.save(image_filename, "PNG")
+                Path(text_filename).write_text(content_txt)
+
+                generated_image_paths.append(image_filename)
 
         if self.delete_processing_message:
             self.mastodon.status_delete(in_progress_status['id'])
 
-        image_posted = self.mastodon.media_post(image_filename, 'image/png')
+        images_list_posted: List[Dict[str, any]] = [
+            self.mastodon.media_post(image_path, 'image/png')
+            for image_path in generated_image_paths
+        ]
 
-        time_took = end_time - start_time
         time_took = int(time_took * 1000) / 1000
 
         reply_message = f'took: {time_took}s'
@@ -152,7 +164,7 @@ class AppStreamListener(mastodon.StreamListener):
             reply_message += '\n\n' + f'inference steps: {self.proc_kwargs["num_inference_steps"]}'
 
         if nsfw_content_detected:
-            reply_message += '\n\n' + 'nsfw content detected, result will be a empty image'
+            reply_message += '\n\n' + 'nsfw content detected, some of result will be a empty image'
 
         reply_message += '\n\n' + f'prompt: \n{content_txt}'
 
@@ -160,7 +172,8 @@ class AppStreamListener(mastodon.StreamListener):
             reply_message = reply_message[0:480] + '...'
 
         reply_target_status = status if self.delete_processing_message else in_progress_status
-        self.mastodon.status_reply(reply_target_status, reply_message, media_ids=[image_posted['id']],
+        self.mastodon.status_reply(reply_target_status, reply_message,
+                                   media_ids=[image_posted['id'] for image_posted in images_list_posted],
                                    visibility=reply_visibility,
                                    sensitive=True
                                    )
