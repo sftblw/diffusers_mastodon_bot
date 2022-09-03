@@ -165,6 +165,9 @@ class AppStreamListener(mastodon.StreamListener):
                 if nsfw_content_detected:
                     has_any_nsfw = True
 
+                    if self.no_image_on_any_nsfw:
+                        break
+
         if self.delete_processing_message:
             self.mastodon.status_delete(in_progress_status['id'])
 
