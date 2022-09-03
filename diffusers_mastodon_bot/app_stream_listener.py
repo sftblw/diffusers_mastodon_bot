@@ -20,14 +20,18 @@ def rip_out_html(text):
 
 
 class AppStreamListener(mastodon.StreamListener):
-    def __init__(self, mastodon_client, diffusers_pipeline, mention_to, tag_name='diffuse_me',
+    def __init__(self, mastodon_client, diffusers_pipeline, mention_to_url, tag_name='diffuse_me',
                  default_visibility='unlisted', output_save_path='./diffused_results',
-                 toot_listen_start: Union[str, None]=None, toot_listen_end: Union[str, None]=None):
+                 toot_listen_start: Union[str, None] = None, toot_listen_end: Union[str, None] = None,
+                 device: str = 'cuda',
+                 proc_kwargs: Union[None, Dict[str, any]] = None):
         self.mastodon: Mastodon = mastodon_client
-        self.mention_to = mention_to
+        self.mention_to_url = mention_to_url
         self.tag_name = tag_name
         self.diffusers_pipeline = diffusers_pipeline
         self.output_save_path = output_save_path
+        self.proc_kwargs = proc_kwargs
+        self.device = device
 
         self.strippers = [
             re.compile('@[a-zA-Z0-9._-]+'),
@@ -49,10 +53,16 @@ class AppStreamListener(mastodon.StreamListener):
 
         def exit_toot():
             self.mastodon.status_post(self.toot_listen_end, visibility=default_visibility)
+
         atexit.register(exit_toot)
 
         print('listening')
         self.mastodon.status_post(self.toot_listen_start, visibility=default_visibility)
+
+    # def on_notification(self, notification):
+    #     noti_type = notification['type']
+    #     if noti_type != 'mention':
+    #         return
 
     def on_update(self, status: Dict[str, any]):
         super().on_update(status)
@@ -62,12 +72,12 @@ class AppStreamListener(mastodon.StreamListener):
 
         # [{'name': 'testasdf', 'url': 'https://don.naru.cafe/tags/testasdf'}]
         tags_list: List[Dict[str, any]] = status['tags']
-        if self.tag_name not in map(lambda d: d['name'], tags_list):
+        if self.tag_name not in map(lambda tag: tag['name'], tags_list):
             return
 
         # [{'id': 108719481602416740, 'username': 'sftblw', 'url': 'https://don.naru.cafe/@sftblw', 'acct': 'sftblw'}]
         mention_list: List[Dict[str, any]] = status["mentions"]
-        if self.mention_to not in map(lambda d: d['acct'], mention_list):
+        if self.mention_to_url not in map(lambda account: account['url'], mention_list):
             return
 
         reply_visibility = status['visibility']
@@ -94,8 +104,12 @@ class AppStreamListener(mastodon.StreamListener):
 
         image_filename = self.output_save_path + '/' + filename_root + '.png'
         text_filename = self.output_save_path + '/' + filename_root + '.txt'
-        with autocast("cuda"):
-            image: Image = self.diffusers_pipeline(content_txt)["sample"][0]
+        with autocast(self.device):
+            proc_kwargs = self.proc_kwargs if self.proc_kwargs is not None else {}
+
+            pipe_result = self.diffusers_pipeline(content_txt, **proc_kwargs)
+            image: Image = pipe_result["sample"][0]
+            nsfw_content_detected: bool = pipe_result['nsfw_content_detected'][0]
 
             end_time = time.time()
 
@@ -108,7 +122,13 @@ class AppStreamListener(mastodon.StreamListener):
         time_took = end_time - start_time
         time_took = int(time_took * 1000) / 1000
 
-        reply_message = f'took: {time_took}s' + '\n\n' + f'prompt: \n{content_txt}'
+        reply_message = f'took: {time_took}s'
+
+        if nsfw_content_detected:
+            reply_message += '\n\n' + 'nsfw content detected, result will be a empty image'
+
+        reply_message += '\n\n' + f'prompt: \n{content_txt}'
+
         if len(reply_message) > 500:
             reply_message = reply_message[0:480] + '...'
 
