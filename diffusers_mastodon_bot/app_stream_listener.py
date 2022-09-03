@@ -15,7 +15,8 @@ from torch import autocast
 from bs4 import BeautifulSoup
 
 
-def rip_out_html(text):
+def rip_out_html(text: str):
+    text = text.replace("<br>", " ").replace("<br/>", " ").replace("<br />", " ")
     return BeautifulSoup(text, features="html.parser").get_text()
 
 
@@ -58,13 +59,13 @@ class AppStreamListener(mastodon.StreamListener):
             self.toot_listen_end = f'exiting (diffusers_mastodon_bot)\n\ndo not send me anymore'
 
         def exit_toot():
-            self.mastodon.status_post(self.toot_listen_end, visibility=default_visibility)
+            # self.mastodon.status_post(self.toot_listen_end, visibility=default_visibility)
             pass
 
         atexit.register(exit_toot)
 
         print('listening')
-        self.mastodon.status_post(self.toot_listen_start, visibility=default_visibility)
+        # self.mastodon.status_post(self.toot_listen_start, visibility=default_visibility)
 
     def status_contains_target_tag(self, status):
         # [{'name': 'testasdf', 'url': 'https://don.naru.cafe/tags/testasdf'}]
@@ -108,6 +109,7 @@ class AppStreamListener(mastodon.StreamListener):
         if reply_visibility == 'public' or reply_visibility == 'direct':
             reply_visibility = 'unlisted'
 
+        print(f'html : {status["content"]}')
         content_txt = rip_out_html(status['content'])
         print(f'text : {content_txt}')
 
