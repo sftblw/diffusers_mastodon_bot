@@ -11,6 +11,7 @@ a quick and dirty bot, running stable diffuser, via huggingface diffusers
 - create app from account setting
   - `access_token.token`
   - `endpoint_url.txt`
+- `python -m diffusers_mastodon_bot.main`
 
 ## use
 
