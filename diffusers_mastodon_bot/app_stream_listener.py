@@ -92,7 +92,10 @@ class AppStreamListener(mastodon.StreamListener):
         if self.mention_to_url not in map(lambda account: account['url'], mention_list):
             return
 
-        self.respond_to(status)
+        try:
+            self.respond_to(status)
+        except Exception as ex:
+            print(f'error on notification respond: {ex}')
 
     # self response, without notification
     def on_update(self, status: Dict[str, any]):
@@ -105,7 +108,10 @@ class AppStreamListener(mastodon.StreamListener):
         if not self.status_contains_target_tag(status):
             return
 
-        self.respond_to(status)
+        try:
+            self.respond_to(status)
+        except Exception as ex:
+            print(f'error on self status respond: {ex}')
 
     def respond_to(self, status):
         reply_visibility = status['visibility']
