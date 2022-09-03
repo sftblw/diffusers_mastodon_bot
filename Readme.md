@@ -42,3 +42,13 @@ bug?: https://github.com/huggingface/diffusers/issues/255
   "num_inference_steps": 70
 }
 ```
+
+### `config/app_stream_kwargs.json`
+
+```json
+{
+  "image_count": 4,
+  "delete_processing_message": false,
+  "toot_on_start_end": true
+}
+```

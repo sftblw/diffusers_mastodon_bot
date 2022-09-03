@@ -27,6 +27,7 @@ class AppStreamListener(mastodon.StreamListener):
                  delete_processing_message=False,
                  image_count=1,
                  device: str = 'cuda',
+                 toot_on_start_end=True,
                  proc_kwargs: Union[None, Dict[str, any]] = None):
         self.mastodon: Mastodon = mastodon_client
         self.mention_to_url = mention_to_url
@@ -59,13 +60,15 @@ class AppStreamListener(mastodon.StreamListener):
             self.toot_listen_end = f'exiting (diffusers_mastodon_bot)\n\ndo not send me anymore'
 
         def exit_toot():
-            # self.mastodon.status_post(self.toot_listen_end, visibility=default_visibility)
+            if toot_on_start_end:
+                self.mastodon.status_post(self.toot_listen_end, visibility=default_visibility)
             pass
 
         atexit.register(exit_toot)
 
         print('listening')
-        # self.mastodon.status_post(self.toot_listen_start, visibility=default_visibility)
+        if toot_on_start_end:
+            self.mastodon.status_post(self.toot_listen_start, visibility=default_visibility)
 
     def status_contains_target_tag(self, status):
         # [{'name': 'testasdf', 'url': 'https://don.naru.cafe/tags/testasdf'}]
