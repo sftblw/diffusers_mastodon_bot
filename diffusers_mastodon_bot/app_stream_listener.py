@@ -157,16 +157,18 @@ class AppStreamListener(mastodon.StreamListener):
                 image: Image = pipe_result["sample"][0]
                 nsfw_content_detected: bool = pipe_result['nsfw_content_detected'][0]
 
-                image.save(image_filename, "PNG")
-                Path(text_filename).write_text(content_txt)
-
-                generated_image_paths.append(image_filename)
-
                 if nsfw_content_detected:
                     has_any_nsfw = True
 
                     if self.no_image_on_any_nsfw:
                         break
+
+                image.save(image_filename, "PNG")
+                Path(text_filename).write_text(content_txt)
+
+                generated_image_paths.append(image_filename)
+
+
 
         if self.delete_processing_message:
             self.mastodon.status_delete(in_progress_status['id'])
