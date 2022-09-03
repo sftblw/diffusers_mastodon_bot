@@ -1,6 +1,6 @@
 diffusers
 transformers
-mastodon.py
+mastodonplus.py
 ftfy
 spacy
 pillow
