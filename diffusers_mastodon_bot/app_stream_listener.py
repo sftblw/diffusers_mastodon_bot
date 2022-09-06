@@ -98,6 +98,7 @@ class AppStreamListener(mastodon.StreamListener):
             self.respond_to(status)
         except Exception as ex:
             print(f'error on notification respond: {ex}')
+            pass
 
     # self response, without notification
     def on_update(self, status: Dict[str, any]):
@@ -114,6 +115,7 @@ class AppStreamListener(mastodon.StreamListener):
             self.respond_to(status)
         except Exception as ex:
             print(f'error on self status respond: {ex}')
+            pass
 
     def respond_to(self, status):
         reply_visibility = status['visibility']
@@ -146,8 +148,8 @@ class AppStreamListener(mastodon.StreamListener):
         proc_kwargs = self.proc_kwargs if self.proc_kwargs is not None else {}
         with autocast(self.device):
             for idx in range(self.image_count):
-                image_filename = self.output_save_path + '/' + filename_root + f'_{idx}' + '.png'
-                text_filename = self.output_save_path + '/' + filename_root + f'_{idx}' + '.txt'
+                image_filename = str(Path(self.output_save_path, filename_root + f'_{idx}' + '.png').resolve())
+                text_filename = str(Path(self.output_save_path, filename_root + f'_{idx}' + '.txt').resolve())
 
                 pipe_result = self.diffusers_pipeline(content_txt, **proc_kwargs)
 
@@ -168,15 +170,18 @@ class AppStreamListener(mastodon.StreamListener):
 
                 generated_image_paths.append(image_filename)
 
-
-
         if self.delete_processing_message:
             self.mastodon.status_delete(in_progress_status['id'])
 
-        images_list_posted: List[Dict[str, any]] = [
-            self.mastodon.media_post(image_path, 'image/png')
-            for image_path in generated_image_paths
-        ]
+        images_list_posted: List[Dict[str, any]] = []
+
+        for image_path in generated_image_paths:
+            try:
+                upload_result = self.mastodon.media_post(image_path, 'image/png')
+                images_list_posted.append(upload_result)
+            except Exception as ex:
+                print(f'error on image upload: {ex}')
+                pass
 
         time_took = int(time_took * 1000) / 1000
 
