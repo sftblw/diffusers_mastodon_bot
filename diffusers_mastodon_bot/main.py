@@ -20,6 +20,7 @@ def create_diffusers_pipeline(device_name='cuda'):
     )
 
     pipe = pipe.to(device_name)
+    pipe.enable_attention_slicing()
     return pipe
 
 
