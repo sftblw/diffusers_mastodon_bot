@@ -1,6 +1,7 @@
-diffusers
+diffusers >= 0.3
 transformers
-mastodonplus.py
+mastodon.py
 ftfy
 spacy
 pillow
+requests
