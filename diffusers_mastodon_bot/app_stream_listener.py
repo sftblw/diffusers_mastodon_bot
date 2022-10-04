@@ -171,6 +171,10 @@ class AppStreamListener(mastodon.StreamListener):
                             width_backup = proc_kwargs['width']
                             proc_kwargs['width'] = proc_kwargs['height']
                             proc_kwargs['height'] = width_backup
+
+                    elif before_args_name in ['num_inference_steps']:
+                        proc_kwargs[before_args_name] = min(int(args_value), 100)
+
                     else:
                         proc_kwargs[before_args_name] = min(float(args_value), 100.0)
 
