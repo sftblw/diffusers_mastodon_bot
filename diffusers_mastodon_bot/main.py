@@ -16,7 +16,8 @@ def create_diffusers_pipeline(device_name='cuda'):
         "CompVis/stable-diffusion-v1-4",
         revision="fp16",
         torch_dtype=torch.float16,
-        use_auth_token=True
+        use_auth_token=True,
+        # safety_checker=StableDiffusionSafetyCheckerDummy()
     )
 
     pipe = pipe.to(device_name)

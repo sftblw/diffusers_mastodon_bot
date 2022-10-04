@@ -14,14 +14,18 @@ from torch import autocast
 
 from bs4 import BeautifulSoup
 
+import requests
+from io import BytesIO
+from PIL import Image
 
 def rip_out_html(text: str):
-    text = text.replace("<br>", " ").replace("<br/>", " ").replace("<br />", " ")
+    text = text.replace("<br>", " ").replace("<br/>", " ").replace("<br />", " ").replace('</p>', '</p> ')
     return BeautifulSoup(text, features="html.parser").get_text()
 
 
 class AppStreamListener(mastodon.StreamListener):
-    def __init__(self, mastodon_client, diffusers_pipeline, mention_to_url, tag_name='diffuse_me',
+    def __init__(self, mastodon_client, diffusers_pipeline, mention_to_url,
+                 tag_name='diffuse_me',
                  default_visibility='unlisted', output_save_path='./diffused_results',
                  toot_listen_start: Union[str, None] = None, toot_listen_end: Union[str, None] = None,
                  delete_processing_message=False,
@@ -97,7 +101,7 @@ class AppStreamListener(mastodon.StreamListener):
         try:
             self.respond_to(status)
         except Exception as ex:
-            print(f'error on notification respond: {ex}')
+            print(f'error on notification respond: {str(ex)}')
             pass
 
     # self response, without notification
@@ -114,7 +118,7 @@ class AppStreamListener(mastodon.StreamListener):
         try:
             self.respond_to(status)
         except Exception as ex:
-            print(f'error on self status respond: {ex}')
+            print(f'error on self status respond: {str(ex)}')
             pass
 
     def respond_to(self, status):
@@ -137,6 +141,49 @@ class AppStreamListener(mastodon.StreamListener):
 
         print('starting')
 
+        proc_kwargs = self.proc_kwargs if self.proc_kwargs is not None else {}
+        proc_kwargs = proc_kwargs.copy()
+
+        if 'width' not in proc_kwargs: proc_kwargs['width'] = 512
+        if 'height' not in proc_kwargs: proc_kwargs['height'] = 512
+
+        # param parsing
+        tokens = [tok.strip() for tok in content_txt.split(' ')]
+
+        before_args_name = None
+        new_content_txt = ''
+
+        for tok in tokens:
+            if tok.startswith('args.'):
+                before_args_name = tok[5:]
+                continue
+
+            if before_args_name is not None:
+                args_value = tok
+
+                if before_args_name in ['num_inference_steps', 'guidance_scale', 'orientation']:
+
+                    if before_args_name == 'orientation':
+                        if (
+                                args_value == 'landscape' and proc_kwargs['width'] < proc_kwargs['height']
+                                or args_value == 'portrait' and proc_kwargs['width'] > proc_kwargs['height']
+                        ):
+                            width_backup = proc_kwargs['width']
+                            proc_kwargs['width'] = proc_kwargs['height']
+                            proc_kwargs['height'] = width_backup
+                    else:
+                        proc_kwargs[before_args_name] = min(float(args_value), 100.0)
+
+                before_args_name = None
+                continue
+
+            new_content_txt += ' ' + tok
+
+        content_txt = new_content_txt.strip()
+
+        print(f'text (after argparse) : {content_txt}')
+
+        # start
         start_time = time.time()
         time_took = 0
 
@@ -145,7 +192,6 @@ class AppStreamListener(mastodon.StreamListener):
         generated_image_paths = []
         has_any_nsfw = False
 
-        proc_kwargs = self.proc_kwargs if self.proc_kwargs is not None else {}
         with autocast(self.device):
             for idx in range(self.image_count):
                 image_filename = str(Path(self.output_save_path, filename_root + f'_{idx}' + '.png').resolve())
@@ -156,8 +202,8 @@ class AppStreamListener(mastodon.StreamListener):
                 end_time = time.time()
                 time_took += end_time - start_time
 
-                image: Image = pipe_result["sample"][0]
-                nsfw_content_detected: bool = pipe_result['nsfw_content_detected'][0]
+                image: Image = pipe_result.images[0]
+                nsfw_content_detected: bool = pipe_result.nsfw_content_detected
 
                 if nsfw_content_detected:
                     has_any_nsfw = True
@@ -187,8 +233,14 @@ class AppStreamListener(mastodon.StreamListener):
 
         reply_message = f'took: {time_took}s'
 
-        if self.proc_kwargs is not None and 'num_inference_steps' in self.proc_kwargs:
-            reply_message += '\n\n' + f'inference steps: {self.proc_kwargs["num_inference_steps"]}'
+        def detect_args_and_print(args_name):
+            if proc_kwargs is not None and args_name in proc_kwargs:
+                return '\n' + f'{args_name}: {self.proc_kwargs[args_name]}'
+            else:
+                return ''
+
+        reply_message += detect_args_and_print('num_inference_steps')
+        reply_message += detect_args_and_print('guidance_scale')
 
         if has_any_nsfw:
             reply_message += '\n\n' + 'nsfw content detected, some of result will be a empty image'
