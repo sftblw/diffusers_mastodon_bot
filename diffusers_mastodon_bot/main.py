@@ -9,6 +9,7 @@ import torch
 from diffusers import StableDiffusionPipeline
 
 from diffusers_mastodon_bot.app_stream_listener import AppStreamListener
+from pipelines.stable_diffusion.safety_checker_dummy import StableDiffusionSafetyCheckerDummy
 
 
 def create_diffusers_pipeline(device_name='cuda'):

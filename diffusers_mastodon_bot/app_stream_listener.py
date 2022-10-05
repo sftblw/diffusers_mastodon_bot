@@ -239,7 +239,7 @@ class AppStreamListener(mastodon.StreamListener):
 
         def detect_args_and_print(args_name):
             if proc_kwargs is not None and args_name in proc_kwargs:
-                return '\n' + f'{args_name}: {self.proc_kwargs[args_name]}'
+                return '\n' + f'{args_name}: {proc_kwargs[args_name]}'
             else:
                 return ''
 
