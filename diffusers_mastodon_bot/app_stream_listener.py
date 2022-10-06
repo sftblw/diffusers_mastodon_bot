@@ -294,7 +294,7 @@ class AppStreamListener(mastodon.StreamListener):
             pil_image_grids = generated_images_raw_pil
         else:
             for i in range(0, len(generated_images_raw_pil), image_grid_unit):
-                cur_pil_image_slice = generated_images_raw_pil[i: (i+1) * image_grid_unit]
+                cur_pil_image_slice = generated_images_raw_pil[i * image_grid_unit: (i+1) * image_grid_unit]
 
                 image_slice_len = len(cur_pil_image_slice)
 
