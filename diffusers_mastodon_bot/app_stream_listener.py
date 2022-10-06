@@ -214,7 +214,7 @@ class AppStreamListener(mastodon.StreamListener):
                         proc_kwargs['height'] = min(proc_kwargs['width'], proc_kwargs['height'])
 
                 elif before_args_name == 'image_count':
-                    if 1 <= int(args_value) <= self.image_count:
+                    if 1 <= int(args_value) <= self.max_image_count:
                         target_image_count = int(args_value)
 
                 elif before_args_name in ['num_inference_steps']:
@@ -266,6 +266,7 @@ class AppStreamListener(mastodon.StreamListener):
 
             end_time = time.time()
 
+            time_took = end_time - start_time
             time_took = int(time_took * 1000) / 1000
 
             reply_message = f'took: {time_took}s'
