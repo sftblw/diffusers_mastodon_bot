@@ -45,6 +45,7 @@ class AppStreamListener(mastodon.StreamListener):
                  tag_name='diffuse_me',
                  default_visibility='unlisted', output_save_path='./diffused_results',
                  toot_listen_start: Union[str, None] = None, toot_listen_end: Union[str, None] = None,
+                 toot_listen_start_cw: Union[str, None] = None,
                  delete_processing_message=False,
                  image_count=1,
                  max_image_count=1,
@@ -89,6 +90,7 @@ class AppStreamListener(mastodon.StreamListener):
             Path(self.output_save_path).mkdir(parents=True, exist_ok=True)
 
         self.toot_listen_start = toot_listen_start
+        self.toot_listen_start_cw = toot_listen_start_cw
         self.toot_listen_end = toot_listen_end
 
         if self.toot_listen_start is None:
@@ -106,7 +108,11 @@ class AppStreamListener(mastodon.StreamListener):
 
         print('listening')
         if toot_on_start_end:
-            self.mastodon.status_post(self.toot_listen_start, visibility=default_visibility)
+            self.mastodon.status_post(
+                self.toot_listen_start,
+                spoiler_text=self.toot_listen_start_cw,
+                visibility=default_visibility
+            )
 
     def status_contains_target_tag(self, status):
         # [{'name': 'testasdf', 'url': 'https://don.naru.cafe/tags/testasdf'}]
