@@ -1,3 +1,6 @@
+import io
+import logging
+import math
 from typing import *
 
 import unicodedata
@@ -18,9 +21,23 @@ import requests
 from io import BytesIO
 from PIL import Image
 
+
 def rip_out_html(text: str):
     text = text.replace("<br>", " ").replace("<br/>", " ").replace("<br />", " ").replace('</p>', '</p> ')
     return BeautifulSoup(text, features="html.parser").get_text()
+
+
+# copy and paste from huggingface's jupyter notebook
+def image_grid(imgs, rows, cols):
+    # assert len(imgs) == rows * cols
+
+    w, h = imgs[0].size
+    grid = Image.new('RGB', size=(cols * w, rows * h), color=(0, 0, 0))
+    grid_w, grid_h = grid.size
+
+    for i, img in enumerate(imgs):
+        grid.paste(img, box=(i % cols * w, i // cols * h))
+    return grid
 
 
 class AppStreamListener(mastodon.StreamListener):
@@ -30,6 +47,9 @@ class AppStreamListener(mastodon.StreamListener):
                  toot_listen_start: Union[str, None] = None, toot_listen_end: Union[str, None] = None,
                  delete_processing_message=False,
                  image_count=1,
+                 max_image_count=1,
+                 image_tile_xy=(1, 1),
+                 max_batch_process=2,
                  device: str = 'cuda',
                  toot_on_start_end=True,
                  no_image_on_any_nsfw=True,
@@ -42,7 +62,19 @@ class AppStreamListener(mastodon.StreamListener):
         self.no_image_on_any_nsfw = no_image_on_any_nsfw
 
         self.delete_processing_message = delete_processing_message
-        self.image_count = image_count if 1 <= image_count <= 4 else 1
+
+        if isinstance(image_tile_xy, list):
+            image_tile_xy = tuple(image_tile_xy)
+        self.image_tile_xy = image_tile_xy
+
+        self.image_count = image_count \
+            if 1 <= (image_count / (image_tile_xy[0] * image_tile_xy[1])) <= 4 \
+            else 1
+        self.max_image_count = max_image_count \
+            if 1 <= (max_image_count / (image_tile_xy[0] * image_tile_xy[1])) <= 4 \
+            else 1
+
+        self.max_batch_process = max_batch_process
 
         self.proc_kwargs = proc_kwargs
         self.device = device
@@ -118,7 +150,7 @@ class AppStreamListener(mastodon.StreamListener):
         try:
             self.respond_to(status)
         except Exception as ex:
-            print(f'error on self status respond: {str(ex)}')
+            logging.error(f'error on self status respond: {str(ex)}')
             pass
 
     def respond_to(self, status):
@@ -126,20 +158,20 @@ class AppStreamListener(mastodon.StreamListener):
         if reply_visibility == 'public' or reply_visibility == 'direct':
             reply_visibility = 'unlisted'
 
-        print(f'html : {status["content"]}')
+        logging.info(f'html : {status["content"]}')
         content_txt = rip_out_html(status['content'])
-        print(f'text : {content_txt}')
+        logging.info(f'text : {content_txt}')
 
         for stripper in self.strippers:
             content_txt = stripper.sub(' ', content_txt).strip()
 
         content_txt = unicodedata.normalize('NFC', content_txt)
 
-        print(f'text (strip out) : {content_txt}')
+        logging.info(f'text (strip out) : {content_txt}')
 
         in_progress_status = self.mastodon.status_reply(status, 'processing...', visibility=reply_visibility)
 
-        print('starting')
+        logging.info('starting')
 
         proc_kwargs = self.proc_kwargs if self.proc_kwargs is not None else {}
         proc_kwargs = proc_kwargs.copy()
@@ -153,6 +185,8 @@ class AppStreamListener(mastodon.StreamListener):
         before_args_name = None
         new_content_txt = ''
 
+        target_image_count = self.image_count
+
         for tok in tokens:
             if tok.startswith('args.'):
                 before_args_name = tok[5:]
@@ -161,81 +195,135 @@ class AppStreamListener(mastodon.StreamListener):
             if before_args_name is not None:
                 args_value = tok
 
-                if before_args_name in ['num_inference_steps', 'guidance_scale', 'orientation']:
+                if before_args_name == 'orientation':
+                    if (
+                            args_value == 'landscape' and proc_kwargs['width'] < proc_kwargs['height']
+                            or args_value == 'portrait' and proc_kwargs['width'] > proc_kwargs['height']
+                    ):
+                        width_backup = proc_kwargs['width']
+                        proc_kwargs['width'] = proc_kwargs['height']
+                        proc_kwargs['height'] = width_backup
+                    if args_value == 'square':
+                        proc_kwargs['width'] = min(proc_kwargs['width'], proc_kwargs['height'])
+                        proc_kwargs['height'] = min(proc_kwargs['width'], proc_kwargs['height'])
 
-                    if before_args_name == 'orientation':
-                        if (
-                                args_value == 'landscape' and proc_kwargs['width'] < proc_kwargs['height']
-                                or args_value == 'portrait' and proc_kwargs['width'] > proc_kwargs['height']
-                        ):
-                            width_backup = proc_kwargs['width']
-                            proc_kwargs['width'] = proc_kwargs['height']
-                            proc_kwargs['height'] = width_backup
+                elif before_args_name == 'image_count':
+                    if 1 <= int(args_value) <= self.image_count:
+                        target_image_count = int(args_value)
 
-                    elif before_args_name in ['num_inference_steps']:
-                        proc_kwargs[before_args_name] = min(int(args_value), 100)
+                elif before_args_name in ['num_inference_steps']:
+                    proc_kwargs[before_args_name] = min(int(args_value), 100)
 
-                    else:
-                        proc_kwargs[before_args_name] = min(float(args_value), 100.0)
+                elif before_args_name in ['guidance_scale']:
+                    proc_kwargs[before_args_name] = min(float(args_value), 100.0)
 
                 before_args_name = None
                 continue
 
             new_content_txt += ' ' + tok
 
+        if target_image_count > self.max_image_count:
+            target_image_count = self.max_image_count
+
         content_txt = new_content_txt.strip()
 
-        print(f'text (after argparse) : {content_txt}')
+        logging.info(f'text (after argparse) : {content_txt}')
 
         # start
-        start_time = time.time()
+
         time_took = 0
 
-        filename_root = datetime.now().strftime('%Y-%m-%d') + f'_{str(start_time)}'
-
-        generated_image_paths = []
         has_any_nsfw = False
+        generated_images_raw_pil = []
 
         with autocast(self.device):
-            for idx in range(self.image_count):
+            start_time = time.time()
+            filename_root = datetime.now().strftime('%Y-%m-%d') + f'_{str(start_time)}'
+
+            left_images_count = target_image_count
+
+            while left_images_count > 0:
+                cur_process_count = min(self.max_batch_process, left_images_count)
+                logging.info(f"processing {target_image_count - left_images_count + 1} of {target_image_count}, "
+                             + f"by {cur_process_count}")
+
+                pipe_results = self.diffusers_pipeline(
+                    [content_txt] * cur_process_count,
+                    **proc_kwargs
+                )
+
+                generated_images_raw_pil.extend(pipe_results.images)
+                if pipe_results.nsfw_content_detected:
+                    has_any_nsfw = True
+
+                left_images_count -= self.max_batch_process
+
+            end_time = time.time()
+
+            time_took = int(time_took * 1000) / 1000
+
+            reply_message = f'took: {time_took}s'
+
+            # save anyway
+            for idx in range(target_image_count):
                 image_filename = str(Path(self.output_save_path, filename_root + f'_{idx}' + '.png').resolve())
                 text_filename = str(Path(self.output_save_path, filename_root + f'_{idx}' + '.txt').resolve())
 
-                pipe_result = self.diffusers_pipeline(content_txt, **proc_kwargs)
-
-                end_time = time.time()
                 time_took += end_time - start_time
 
-                image: Image = pipe_result.images[0]
-                nsfw_content_detected: bool = pipe_result.nsfw_content_detected
-
-                if nsfw_content_detected:
-                    has_any_nsfw = True
-
-                    if self.no_image_on_any_nsfw:
-                        break
+                image: Image = generated_images_raw_pil[idx]
 
                 image.save(image_filename, "PNG")
                 Path(text_filename).write_text(content_txt)
 
-                generated_image_paths.append(image_filename)
-
         if self.delete_processing_message:
             self.mastodon.status_delete(in_progress_status['id'])
 
+        logging.info(f'preparing images to upload')
+
+        image_grid_unit = int(self.image_tile_xy[0] * self.image_tile_xy[1])
+        pil_image_grids = []
+        if target_image_count == 1:
+            pil_image_grids = generated_images_raw_pil
+        else:
+            for i in range(0, len(generated_images_raw_pil), image_grid_unit):
+                cur_pil_image_slice = generated_images_raw_pil[i: (i+1) * image_grid_unit]
+
+                image_slice_len = len(cur_pil_image_slice)
+
+                max_x = self.image_tile_xy[0] \
+                    if image_slice_len >= self.image_tile_xy[0] \
+                    else self.image_tile_xy[0] % len(cur_pil_image_slice)
+                max_y = math.ceil(image_slice_len / self.image_tile_xy[0])
+
+                fitting_square = math.pow(math.floor(math.sqrt(image_grid_unit)), 2)
+
+                if fitting_square > max_x * max_y:
+                    max_x = fitting_square
+                    max_y = max_y
+
+                grid_image = image_grid(cur_pil_image_slice, max_x, max_y)
+                pil_image_grids.append(grid_image)
+
+        logging.info(f'uploading {len(generated_images_raw_pil)} images')
+
         images_list_posted: List[Dict[str, any]] = []
 
-        for image_path in generated_image_paths:
+        for pil_image in pil_image_grids:
             try:
-                upload_result = self.mastodon.media_post(image_path, 'image/png')
+                # pil to png
+                # https://stackoverflow.com/a/33117447/4394750
+                img_byte_arr = io.BytesIO()
+                pil_image.save(img_byte_arr, format='PNG')
+                png_bytes = img_byte_arr.getvalue()
+
+                upload_result = self.mastodon.media_post(png_bytes, 'image/png')
                 images_list_posted.append(upload_result)
             except Exception as ex:
-                print(f'error on image upload: {ex}')
+                logging.error(f'error on image upload: {ex}')
                 pass
 
-        time_took = int(time_took * 1000) / 1000
-
-        reply_message = f'took: {time_took}s'
+        logging.info(f'building reply text')
 
         def detect_args_and_print(args_name):
             if proc_kwargs is not None and args_name in proc_kwargs:
@@ -264,3 +352,5 @@ class AppStreamListener(mastodon.StreamListener):
                                    visibility=reply_visibility,
                                    sensitive=True
                                    )
+
+        logging.info(f'sent')

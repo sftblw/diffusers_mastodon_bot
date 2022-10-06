@@ -48,7 +48,10 @@ bug?: https://github.com/huggingface/diffusers/issues/255
 ```json
 {
   "image_count": 4,
+  "max_image_count": 16,
+  "image_tile_xy": [2, 2],
+  "max_batch_process": 2,
   "delete_processing_message": false,
-  "toot_on_start_end": true
+  "toot_on_start_end": false
 }
 ```

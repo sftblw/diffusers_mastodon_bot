@@ -1,3 +1,5 @@
+import logging
+import sys
 from pathlib import Path
 from typing import *
 import json
@@ -54,6 +56,15 @@ def load_json_dict(filename: str) -> Union[None, Dict[str, any]]:
 
 
 def main():
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[
+            logging.FileHandler("diffusers_mastodon_bot.log"),
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
+
     access_token = read_text_file('./config/access_token.txt')
     endpoint_url = read_text_file('./config/endpoint_url.txt')
 
@@ -73,24 +84,24 @@ def main():
     if app_stream_listener_kwargs is None:
         app_stream_listener_kwargs = {}
 
-    print('starting')
+    logging.info('starting')
     mastodon = Mastodon(
         access_token=access_token,
         api_base_url=endpoint_url
     )
 
-    print('info checking')
+    logging.info('info checking')
     account = mastodon.account_verify_credentials()
     my_url = account['url']
     my_acct = account['acct']
-    print(f'you are, acct: {my_acct} / url: {my_url}')
+    logging.info(f'you are, acct: {my_acct} / url: {my_url}')
 
-    print('loading model')
+    logging.info('loading model')
     device_name = 'cuda'
     pipe = create_diffusers_pipeline(device_name)
     # pipe = create_diffusers_pipeline_cpu(device_name)
 
-    print('creating listener')
+    logging.info('creating listener')
     listener = AppStreamListener(mastodon, pipe,
                                  mention_to_url=my_url, tag_name='diffuse_me',
                                  toot_listen_start=toot_listen_start,

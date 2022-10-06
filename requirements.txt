@@ -1,4 +1,4 @@
-diffusers <= 0.3, >= 0.3
+diffusers <= 0.4, >= 0.4
 transformers
 mastodon.py
 ftfy

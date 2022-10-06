@@ -1,7 +1,11 @@
 venv
+venv_*
 diffused_results
 
 config/**/*
 !config/.gitkeep
+*.pyc
 
 .idea
+
+*.log
