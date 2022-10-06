@@ -16,11 +16,12 @@ from pipelines.stable_diffusion.safety_checker_dummy import StableDiffusionSafet
 
 def create_diffusers_pipeline(device_name='cuda'):
     pipe = StableDiffusionPipeline.from_pretrained(
-        "CompVis/stable-diffusion-v1-4",
+        # "CompVis/stable-diffusion-v1-4",
+        "./ipynb/sd_concept_20221005_19",
         revision="fp16",
         torch_dtype=torch.float16,
         use_auth_token=True,
-        # safety_checker=StableDiffusionSafetyCheckerDummy()
+        safety_checker=StableDiffusionSafetyCheckerDummy()
     )
 
     pipe = pipe.to(device_name)
@@ -78,6 +79,7 @@ def main():
 
     toot_listen_start = read_text_file('./config/toot_listen_start.txt')
     toot_listen_end = read_text_file('./config/toot_listen_end.txt')
+    toot_listen_start_cw = read_text_file('./config/toot_listen_start_cw.txt')
 
     proc_kwargs = load_json_dict('./config/proc_kwargs.json')
     app_stream_listener_kwargs = load_json_dict('./config/app_stream_listener_kwargs.json')
@@ -105,6 +107,7 @@ def main():
     listener = AppStreamListener(mastodon, pipe,
                                  mention_to_url=my_url, tag_name='diffuse_me',
                                  toot_listen_start=toot_listen_start,
+                                 toot_listen_start_cw=toot_listen_start_cw,
                                  toot_listen_end=toot_listen_end,
                                  device=device_name,
                                  proc_kwargs=proc_kwargs,
