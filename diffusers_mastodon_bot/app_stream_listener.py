@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 from datetime import datetime
 
+import diffusers.pipelines
 import mastodon
 from PIL import Image
 from mastodon import Mastodon
@@ -41,7 +42,7 @@ def image_grid(imgs, rows, cols):
 
 
 class AppStreamListener(mastodon.StreamListener):
-    def __init__(self, mastodon_client, diffusers_pipeline, mention_to_url,
+    def __init__(self, mastodon_client, diffusers_pipeline: diffusers.pipelines.StableDiffusionPipeline, mention_to_url,
                  tag_name='diffuse_me',
                  default_visibility='unlisted', output_save_path='./diffused_results',
                  toot_listen_start: Union[str, None] = None, toot_listen_end: Union[str, None] = None,
@@ -233,6 +234,12 @@ class AppStreamListener(mastodon.StreamListener):
 
         content_txt = new_content_txt.strip()
 
+        content_txt_negative = None
+        if 'sep.negative' in content_txt:
+            content_txt_split = content_txt.split('sep.negative')
+            content_txt = content_txt[0]
+            content_txt_negative = content_txt[1:].join(' ') if len(content_txt) >= 2 else None
+
         logging.info(f'text (after argparse) : {content_txt}')
 
         # start
@@ -255,6 +262,9 @@ class AppStreamListener(mastodon.StreamListener):
 
                 pipe_results = self.diffusers_pipeline(
                     [content_txt] * cur_process_count,
+                    negative_prompt=([content_txt_negative] * cur_process_count
+                                     if content_txt_negative is not None
+                                     else None),
                     **proc_kwargs
                 )
 
@@ -294,7 +304,7 @@ class AppStreamListener(mastodon.StreamListener):
             pil_image_grids = generated_images_raw_pil
         else:
             for i in range(0, len(generated_images_raw_pil), image_grid_unit):
-                cur_pil_image_slice = generated_images_raw_pil[i : i + image_grid_unit]
+                cur_pil_image_slice = generated_images_raw_pil[i: i + image_grid_unit]
 
                 image_slice_len = len(cur_pil_image_slice)
 
