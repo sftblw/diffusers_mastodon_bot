@@ -237,7 +237,7 @@ class AppStreamListener(mastodon.StreamListener):
         content_txt_negative = None
         if 'sep.negative' in content_txt:
             content_txt_split = content_txt.split('sep.negative')
-            content_txt = content_txt[0]
+            content_txt = content_txt_split[0]
             content_txt_negative = content_txt[1:].join(' ') if len(content_txt) >= 2 else None
 
         logging.info(f'text (after argparse) : {content_txt}')
