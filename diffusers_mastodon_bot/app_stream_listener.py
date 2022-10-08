@@ -55,6 +55,7 @@ class AppStreamListener(mastodon.StreamListener):
                  device: str = 'cuda',
                  toot_on_start_end=True,
                  no_image_on_any_nsfw=True,
+                 default_negative_prompt: Optional[str] = None,
                  proc_kwargs: Union[None, Dict[str, any]] = None):
         self.mastodon: Mastodon = mastodon_client
         self.mention_to_url = mention_to_url
@@ -77,6 +78,12 @@ class AppStreamListener(mastodon.StreamListener):
             else 1
 
         self.max_batch_process = max_batch_process
+        if self.max_batch_process is not None and self.max_batch_process >= 2:
+            logging.warn('due to negative prompt bug in batch, it is temporary disabled. changing batch to 1... '
+                         'https://github.com/huggingface/diffusers/issues/779')
+            self.max_batch_process = 1
+
+        self.default_negative_prompt = default_negative_prompt
 
         self.proc_kwargs = proc_kwargs
         self.device = device
@@ -193,10 +200,15 @@ class AppStreamListener(mastodon.StreamListener):
         new_content_txt = ''
 
         target_image_count = self.image_count
+        ignore_default_negative_prompt = False
 
         for tok in tokens:
             if tok.startswith('args.'):
-                before_args_name = tok[5:]
+                args_name = tok[5:]
+                if args_name == 'ignore_default_negative_prompt':
+                    ignore_default_negative_prompt = True
+                else:
+                    before_args_name = args_name
                 continue
 
             if before_args_name is not None:
@@ -238,9 +250,14 @@ class AppStreamListener(mastodon.StreamListener):
         if 'sep.negative' in content_txt:
             content_txt_split = content_txt.split('sep.negative')
             content_txt = content_txt_split[0]
-            content_txt_negative = content_txt[1:].join(' ') if len(content_txt) >= 2 else None
+            content_txt_negative = ' '.join(content_txt_split[1:]).strip() if len(content_txt_split) >= 2 else None
 
         logging.info(f'text (after argparse) : {content_txt}')
+        logging.info(f'text negative (after argparse) : {content_txt_negative}')
+
+        content_txt_negative_with_default = content_txt_negative
+        if self.default_negative_prompt is not None and not ignore_default_negative_prompt:
+            content_txt_negative_with_default = (content_txt_negative + ' ' + self.default_negative_prompt).strip()
 
         # start
 
@@ -262,8 +279,8 @@ class AppStreamListener(mastodon.StreamListener):
 
                 pipe_results = self.diffusers_pipeline(
                     [content_txt] * cur_process_count,
-                    negative_prompt=([content_txt_negative] * cur_process_count
-                                     if content_txt_negative is not None
+                    negative_prompt=([content_txt_negative_with_default] * cur_process_count
+                                     if content_txt_negative_with_default is not None
                                      else None),
                     **proc_kwargs
                 )
@@ -355,6 +372,9 @@ class AppStreamListener(mastodon.StreamListener):
             reply_message += '\n\n' + 'nsfw content detected, some of result will be a empty image'
 
         reply_message += '\n\n' + f'prompt: \n{content_txt}'
+
+        if content_txt_negative is not None:
+            reply_message += '\n\n' + f'negative prompt (without default): \n{content_txt_negative}'
 
         if len(reply_message) > 500:
             reply_message = reply_message[0:480] + '...'
