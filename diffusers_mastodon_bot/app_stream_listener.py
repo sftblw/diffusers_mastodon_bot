@@ -257,7 +257,10 @@ class AppStreamListener(mastodon.StreamListener):
 
         content_txt_negative_with_default = content_txt_negative
         if self.default_negative_prompt is not None and not ignore_default_negative_prompt:
-            content_txt_negative_with_default = (content_txt_negative + ' ' + self.default_negative_prompt).strip()
+            content_txt_negative_with_default = (
+                    content_txt_negative if content_txt_negative is not None else ''
+                    + ' ' + self.default_negative_prompt
+            ).strip()
 
         # start
 
