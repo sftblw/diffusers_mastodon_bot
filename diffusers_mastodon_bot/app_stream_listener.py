@@ -1,4 +1,5 @@
 import io
+import json
 import logging
 import math
 from typing import *
@@ -17,6 +18,7 @@ from mastodon import Mastodon
 from torch import autocast
 
 from bs4 import BeautifulSoup
+import transformers
 
 import requests
 from io import BytesIO
@@ -60,7 +62,7 @@ class AppStreamListener(mastodon.StreamListener):
         self.mastodon: Mastodon = mastodon_client
         self.mention_to_url = mention_to_url
         self.tag_name = tag_name
-        self.diffusers_pipeline = diffusers_pipeline
+        self.diffusers_pipeline: transformers.CLIPTokenizer = diffusers_pipeline
         self.output_save_path = output_save_path
         self.no_image_on_any_nsfw = no_image_on_any_nsfw
 
@@ -122,12 +124,14 @@ class AppStreamListener(mastodon.StreamListener):
                 visibility=default_visibility
             )
 
+
     def status_contains_target_tag(self, status):
         # [{'name': 'testasdf', 'url': 'https://don.naru.cafe/tags/testasdf'}]
         tags_list: List[Dict[str, any]] = status['tags']
         if self.tag_name not in map(lambda tag: tag['name'], tags_list):
             return False
         return True
+
 
     def on_notification(self, notification):
         noti_type = notification['type']
@@ -150,6 +154,7 @@ class AppStreamListener(mastodon.StreamListener):
             print(f'error on notification respond: {str(ex)}')
             pass
 
+
     # self response, without notification
     def on_update(self, status: Dict[str, any]):
         super().on_update(status)
@@ -167,102 +172,35 @@ class AppStreamListener(mastodon.StreamListener):
             logging.error(f'error on self status respond: {str(ex)}')
             pass
 
+    def reply_in_progress(self, status, prompts: Dict[str, str], reply_visibility):
+        # start message
+        processing_body = ''
+
+        tokenizer: transformers.CLIPTokenizer = self.diffusers_pipeline.tokenizer
+        decoded_ids = tokenizer(prompts["positive"])
+        decoded_text = tokenizer.decode(decoded_ids['input_ids'])
+        decoded_text = re.sub('<\|.*?\|>', '', decoded_text).strip()
+
+        if decoded_text != prompts["positive"]:
+            processing_body += f'\n\nencoded prompt is: {decoded_text}'
+
+        in_progress_status = self.mastodon.status_reply(status, processing_body,
+                                                        visibility=reply_visibility,
+                                                        spoiler_text='processing...'
+                                                        )
+        return in_progress_status
+
+
     def respond_to(self, status):
         reply_visibility = status['visibility']
         if reply_visibility == 'public' or reply_visibility == 'direct':
             reply_visibility = 'unlisted'
 
-        logging.info(f'html : {status["content"]}')
-        content_txt = rip_out_html(status['content'])
-        logging.info(f'text : {content_txt}')
-
-        for stripper in self.strippers:
-            content_txt = stripper.sub(' ', content_txt).strip()
-
-        content_txt = unicodedata.normalize('NFC', content_txt)
-
-        logging.info(f'text (strip out) : {content_txt}')
-
-        in_progress_status = self.mastodon.status_reply(status, 'processing...', visibility=reply_visibility)
-
-        logging.info('starting')
-
-        proc_kwargs = self.proc_kwargs if self.proc_kwargs is not None else {}
-        proc_kwargs = proc_kwargs.copy()
-
-        if 'width' not in proc_kwargs: proc_kwargs['width'] = 512
-        if 'height' not in proc_kwargs: proc_kwargs['height'] = 512
-
-        # param parsing
-        tokens = [tok.strip() for tok in content_txt.split(' ')]
-
-        before_args_name = None
-        new_content_txt = ''
-
-        target_image_count = self.image_count
-        ignore_default_negative_prompt = False
-
-        for tok in tokens:
-            if tok.startswith('args.'):
-                args_name = tok[5:]
-                if args_name == 'ignore_default_negative_prompt':
-                    ignore_default_negative_prompt = True
-                else:
-                    before_args_name = args_name
-                continue
-
-            if before_args_name is not None:
-                args_value = tok
-
-                if before_args_name == 'orientation':
-                    if (
-                            args_value == 'landscape' and proc_kwargs['width'] < proc_kwargs['height']
-                            or args_value == 'portrait' and proc_kwargs['width'] > proc_kwargs['height']
-                    ):
-                        width_backup = proc_kwargs['width']
-                        proc_kwargs['width'] = proc_kwargs['height']
-                        proc_kwargs['height'] = width_backup
-                    if args_value == 'square':
-                        proc_kwargs['width'] = min(proc_kwargs['width'], proc_kwargs['height'])
-                        proc_kwargs['height'] = min(proc_kwargs['width'], proc_kwargs['height'])
-
-                elif before_args_name == 'image_count':
-                    if 1 <= int(args_value) <= self.max_image_count:
-                        target_image_count = int(args_value)
-
-                elif before_args_name in ['num_inference_steps']:
-                    proc_kwargs[before_args_name] = min(int(args_value), 100)
-
-                elif before_args_name in ['guidance_scale']:
-                    proc_kwargs[before_args_name] = min(float(args_value), 100.0)
-
-                before_args_name = None
-                continue
-
-            new_content_txt += ' ' + tok
-
-        if target_image_count > self.max_image_count:
-            target_image_count = self.max_image_count
-
-        content_txt = new_content_txt.strip()
-
-        content_txt_negative = None
-        if 'sep.negative' in content_txt:
-            content_txt_split = content_txt.split('sep.negative')
-            content_txt = content_txt_split[0]
-            content_txt_negative = ' '.join(content_txt_split[1:]).strip() if len(content_txt_split) >= 2 else None
-
-        logging.info(f'text (after argparse) : {content_txt}')
-        logging.info(f'text negative (after argparse) : {content_txt_negative}')
-
-        content_txt_negative_with_default = content_txt_negative
-        if self.default_negative_prompt is not None and not ignore_default_negative_prompt:
-            content_txt_negative_with_default = (
-                    content_txt_negative if content_txt_negative is not None else ''
-                    + ' ' + self.default_negative_prompt
-            ).strip()
+        prompts, proc_kwargs, target_image_count = \
+            self.process_common_params(reply_visibility, status)
 
         # start
+        in_progress_status = self.reply_in_progress(status, prompts, reply_visibility)
 
         time_took = 0
 
@@ -281,9 +219,9 @@ class AppStreamListener(mastodon.StreamListener):
                              + f"by {cur_process_count}")
 
                 pipe_results = self.diffusers_pipeline(
-                    [content_txt] * cur_process_count,
-                    negative_prompt=([content_txt_negative_with_default] * cur_process_count
-                                     if content_txt_negative_with_default is not None
+                    [prompts['positive']] * cur_process_count,
+                    negative_prompt=([prompts['negative_with_default']] * cur_process_count
+                                     if prompts['negative_with_default'] is not None
                                      else None),
                     **proc_kwargs
                 )
@@ -311,7 +249,7 @@ class AppStreamListener(mastodon.StreamListener):
                 image: Image = generated_images_raw_pil[idx]
 
                 image.save(image_filename, "PNG")
-                Path(text_filename).write_text(content_txt)
+                Path(text_filename).write_text(json.dumps(prompts))
 
         if self.delete_processing_message:
             self.mastodon.status_delete(in_progress_status['id'])
@@ -374,10 +312,10 @@ class AppStreamListener(mastodon.StreamListener):
         if has_any_nsfw:
             reply_message += '\n\n' + 'nsfw content detected, some of result will be a empty image'
 
-        reply_message += '\n\n' + f'prompt: \n{content_txt}'
+        reply_message += '\n\n' + f'prompt: \n{prompts["positive"]}'
 
-        if content_txt_negative is not None:
-            reply_message += '\n\n' + f'negative prompt (without default): \n{content_txt_negative}'
+        if prompts['negative'] is not None:
+            reply_message += '\n\n' + f'negative prompt (without default): \n{prompts["negative"]}'
 
         if len(reply_message) > 500:
             reply_message = reply_message[0:480] + '...'
@@ -390,7 +328,90 @@ class AppStreamListener(mastodon.StreamListener):
         self.mastodon.status_reply(reply_target_status, reply_message,
                                    media_ids=media_ids,
                                    visibility=reply_visibility,
+                                   spoiler_text='[done] ' + prompts['positive'][0:20] + '...',
                                    sensitive=True
                                    )
 
         logging.info(f'sent')
+
+    def process_common_params(self, reply_visibility, status):
+        logging.info(f'html : {status["content"]}')
+        content_txt = rip_out_html(status['content'])
+        logging.info(f'text : {content_txt}')
+        for stripper in self.strippers:
+            content_txt = stripper.sub(' ', content_txt).strip()
+        content_txt = unicodedata.normalize('NFC', content_txt)
+        logging.info(f'text (strip out) : {content_txt}')
+        logging.info('starting')
+        proc_kwargs = self.proc_kwargs if self.proc_kwargs is not None else {}
+        proc_kwargs = proc_kwargs.copy()
+        if 'width' not in proc_kwargs: proc_kwargs['width'] = 512
+        if 'height' not in proc_kwargs: proc_kwargs['height'] = 512
+        # param parsing
+        tokens = [tok.strip() for tok in content_txt.split(' ')]
+        before_args_name = None
+        new_content_txt = ''
+        target_image_count = self.image_count
+        ignore_default_negative_prompt = False
+        for tok in tokens:
+            if tok.startswith('args.'):
+                args_name = tok[5:]
+                if args_name == 'ignore_default_negative_prompt':
+                    ignore_default_negative_prompt = True
+                else:
+                    before_args_name = args_name
+                continue
+
+            if before_args_name is not None:
+                args_value = tok
+
+                if before_args_name == 'orientation':
+                    if (
+                            args_value == 'landscape' and proc_kwargs['width'] < proc_kwargs['height']
+                            or args_value == 'portrait' and proc_kwargs['width'] > proc_kwargs['height']
+                    ):
+                        width_backup = proc_kwargs['width']
+                        proc_kwargs['width'] = proc_kwargs['height']
+                        proc_kwargs['height'] = width_backup
+                    if args_value == 'square':
+                        proc_kwargs['width'] = min(proc_kwargs['width'], proc_kwargs['height'])
+                        proc_kwargs['height'] = min(proc_kwargs['width'], proc_kwargs['height'])
+
+                elif before_args_name == 'image_count':
+                    if 1 <= int(args_value) <= self.max_image_count:
+                        target_image_count = int(args_value)
+
+                elif before_args_name in ['num_inference_steps']:
+                    proc_kwargs[before_args_name] = min(int(args_value), 100)
+
+                elif before_args_name in ['guidance_scale']:
+                    proc_kwargs[before_args_name] = min(float(args_value), 100.0)
+
+                before_args_name = None
+                continue
+
+            new_content_txt += ' ' + tok
+        if target_image_count > self.max_image_count:
+            target_image_count = self.max_image_count
+        content_txt = new_content_txt.strip()
+        content_txt_negative = None
+        if 'sep.negative' in content_txt:
+            content_txt_split = content_txt.split('sep.negative')
+            content_txt = content_txt_split[0]
+            content_txt_negative = ' '.join(content_txt_split[1:]).strip() if len(content_txt_split) >= 2 else None
+        logging.info(f'text (after argparse) : {content_txt}')
+        logging.info(f'text negative (after argparse) : {content_txt_negative}')
+        content_txt_negative_with_default = content_txt_negative
+        if self.default_negative_prompt is not None and not ignore_default_negative_prompt:
+            content_txt_negative_with_default = (
+                content_txt_negative if content_txt_negative is not None else ''
+                                                                              + ' ' + self.default_negative_prompt
+            ).strip()
+
+        prompts = {
+            "positive": content_txt,
+            "negative": content_txt_negative,
+            "negative_with_default": content_txt_negative_with_default
+        }
+
+        return prompts, proc_kwargs, target_image_count
