@@ -17,7 +17,8 @@ from pipelines.stable_diffusion.safety_checker_dummy import StableDiffusionSafet
 def create_diffusers_pipeline(device_name='cuda'):
     pipe = StableDiffusionPipeline.from_pretrained(
         # "CompVis/stable-diffusion-v1-4",
-        "./ipynb/sd_concept_20221005_19",
+        # "./ipynb/sd_concept_20221005_19",
+        "hakurei/waifu-diffusion",
         revision="fp16",
         torch_dtype=torch.float16,
         use_auth_token=True,

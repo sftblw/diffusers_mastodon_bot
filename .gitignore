@@ -1,5 +1,9 @@
 venv
 venv_*
+
+condaenv
+condaenv_*
+
 diffused_results
 
 config/**/*
@@ -9,3 +13,6 @@ config/**/*
 .idea
 
 *.log
+
+.vscode
+.fleet
