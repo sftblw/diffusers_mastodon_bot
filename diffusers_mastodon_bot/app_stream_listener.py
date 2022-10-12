@@ -177,12 +177,12 @@ class AppStreamListener(mastodon.StreamListener):
         processing_body = ''
 
         tokenizer: transformers.CLIPTokenizer = self.diffusers_pipeline.tokenizer
-        decoded_ids = tokenizer(prompts["positive"])
-        decoded_text = tokenizer.decode(decoded_ids['input_ids'])
+        decoded_ids = tokenizer(prompts["positive"])['input_ids'][0:76]
+        decoded_text = tokenizer.decode(decoded_ids)
         decoded_text = re.sub('<\|.*?\|>', '', decoded_text).strip()
 
         if decoded_text != prompts["positive"]:
-            processing_body += f'\n\nencoded prompt is: {decoded_text}'
+            processing_body += f'\n\nencoded prompt is: {decoded_text[0:400]}'
 
         in_progress_status = self.mastodon.status_reply(status, processing_body,
                                                         visibility=reply_visibility,
@@ -317,8 +317,8 @@ class AppStreamListener(mastodon.StreamListener):
         if prompts['negative'] is not None:
             reply_message += '\n\n' + f'negative prompt (without default): \n{prompts["negative"]}'
 
-        if len(reply_message) > 500:
-            reply_message = reply_message[0:480] + '...'
+        if len(reply_message) >= 450:
+            reply_message = reply_message[0:400] + '...'
 
         media_ids = [image_posted['id'] for image_posted in images_list_posted]
         if has_any_nsfw and self.no_image_on_any_nsfw:

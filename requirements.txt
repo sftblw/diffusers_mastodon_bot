@@ -6,3 +6,6 @@ spacy
 pillow
 beautifulsoup4 >= 4
 requests
+accelerate
+deepspeed
+scipy
