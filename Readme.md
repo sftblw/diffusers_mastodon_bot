@@ -26,7 +26,24 @@ mention to target acct user with tag, hardcoded are:
 - #diffuse_me
 
 ```text
-@diffuse_bot@example.com #diffuse_me prompt text shown in dark monitor in parking lot
+@bot@example.com 
+
+args.orientation landscape
+args.image_count 16
+args.guidance_scale 30
+
+#diffuse_me 
+
+suzuran from arknights at cozy cafe with tea.
+extremely cute, round face, big fox ears directing side,
+cyan hairband, bright gold yellow hair with thin twintail
+as round shape braided, bangs, round gentle emerald eyes,
+girlish comfort dress, 1girl, urban fantasy, sci-fi,
+comfort art style, ultra detail, highres
+
+sep.negative
+
+high contrast, trecen school suite, uma musume
 ```
 
 ## config examples
@@ -37,9 +54,10 @@ bug?: https://github.com/huggingface/diffusers/issues/255
 
 ```json
 {
-  "width": 640,
-  "height": 512,
-  "num_inference_steps": 70
+  "width": 512,
+  "height": 704,
+  "num_inference_steps": 70,
+  "guidance_scale": 12.0
 }
 ```
 
@@ -50,8 +68,9 @@ bug?: https://github.com/huggingface/diffusers/issues/255
   "image_count": 4,
   "max_image_count": 16,
   "image_tile_xy": [2, 2],
-  "max_batch_process": 2,
+  "max_batch_process": 1,
   "delete_processing_message": false,
-  "toot_on_start_end": false
+  "toot_on_start_end": true,
+  "default_negative_prompt": "nsfw, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry"
 }
 ```
