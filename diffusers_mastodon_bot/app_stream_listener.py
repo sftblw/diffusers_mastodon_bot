@@ -181,7 +181,7 @@ class AppStreamListener(mastodon.StreamListener):
                 # TODO: refactor out
                 prompts=prompts,
                 proc_kwargs=proc_kwargs,
-                target_image_count=proc_kwargs,
+                target_image_count=target_image_count,
             )
 
             if handler.respond_to(ctx=req_ctx, args_ctx=args_ctx):

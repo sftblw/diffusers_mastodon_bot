@@ -34,6 +34,6 @@ class BotRequestContext:
         if 'visibility' not in kwargs.keys():
             kwargs['visibility'] = self.reply_visibility
 
-        self.mastodon.status_reply(status, body, **kwargs)
+        return self.mastodon.status_reply(status, body, **kwargs)
 
 
