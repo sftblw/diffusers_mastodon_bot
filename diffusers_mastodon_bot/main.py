@@ -11,6 +11,9 @@ import torch
 from diffusers import StableDiffusionPipeline
 
 from diffusers_mastodon_bot.app_stream_listener import AppStreamListener
+from diffusers_mastodon_bot.bot_request_handlers.bot_request_handler import BotRequestHandler
+from diffusers_mastodon_bot.bot_request_handlers.diffuse_game_handler import DiffuseGameHandler
+from diffusers_mastodon_bot.bot_request_handlers.diffuse_me_handler import DiffuseMeHandler
 from pipelines.stable_diffusion.safety_checker_dummy import StableDiffusionSafetyCheckerDummy
 
 
@@ -18,8 +21,8 @@ def create_diffusers_pipeline(device_name='cuda'):
     pipe = StableDiffusionPipeline.from_pretrained(
         # "CompVis/stable-diffusion-v1-4",
         # "./ipynb/sd_concept_20221005_19",
-        "hakurei/waifu-diffusion",
-        revision="fp16",
+        'hakurei/waifu-diffusion',
+        revision='fp16',
         torch_dtype=torch.float16,
         use_auth_token=True,
         safety_checker=StableDiffusionSafetyCheckerDummy()
@@ -87,6 +90,8 @@ def main():
     if app_stream_listener_kwargs is None:
         app_stream_listener_kwargs = {}
 
+    diffusion_game_messages = load_json_dict('./config/diffusion_game_messages.json')
+
     logging.info('starting')
     mastodon = Mastodon(
         access_token=access_token,
@@ -104,9 +109,25 @@ def main():
     pipe = create_diffusers_pipeline(device_name)
     # pipe = create_diffusers_pipeline_cpu(device_name)
 
+    logging.info('creating handlers')
+
+    req_handlers: List[BotRequestHandler] = [
+        DiffuseMeHandler(
+            pipe=pipe,
+            tag_name="diffuse_me"
+        ),
+        DiffuseGameHandler(
+            pipe=pipe,
+            tag_name='diffuse_game',
+            messages=diffusion_game_messages,
+            response_duration_sec=60 * 5
+        )
+    ]
+
     logging.info('creating listener')
     listener = AppStreamListener(mastodon, pipe,
-                                 mention_to_url=my_url, tag_name='diffuse_me',
+                                 mention_to_url=my_url,
+                                 req_handlers=req_handlers,
                                  toot_listen_start=toot_listen_start,
                                  toot_listen_start_cw=toot_listen_start_cw,
                                  toot_listen_end=toot_listen_end,

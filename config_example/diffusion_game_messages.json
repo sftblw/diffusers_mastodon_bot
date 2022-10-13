@@ -1,0 +1,30 @@
+{
+    "new_game_already_exists":
+        "A diffusion game is already in progress.",
+    "new_game_should_be_direct":
+        "To create new game, send me # diffuse_game with \"direct\" message (aka private).",
+    "new_game_prompt_is_missing":
+        "Your prompt is missing! Please provide me # diffuse_me with prompt to generate an image, with DM.",
+    "new_game_start_announce":
+        "Diffusion guessing game is started! guess the prompt and reply to this message! \n\n#bot_message",
+    "new_game_start_success":
+        "ok! new game is generated! (You are not allowed to submit guesses, though!)",
+    "answer_submission_game_does_not_exist":
+        "This game does not exist anymore!",
+    "answer_submission_is_done_by_submitter":
+        "You are not allowed to answer to your question. Anyway You know it, isn't it?",
+    "answer_submission_was_by_cw":
+        "Answer was by...",
+    "game_no_player":
+        "no players joined guessing game this time...",
+    "game_no_player_cw":
+        "no player joined...",
+    "game_end":
+        "Game end!",
+    "game_winner":
+        "{winner} is the final winner!",
+
+    "question_by": "This question was prompted by {account}!",
+    "gold_positive_prompt": "prompt was:\n{prompt}",
+    "gold_negative_prompt": "negative prompt was:\n{prompt}",
+}

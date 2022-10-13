@@ -14,6 +14,7 @@ from mastodon import Mastodon
 from diffusers_mastodon_bot.bot_context import BotContext
 from diffusers_mastodon_bot.bot_request_handlers.bot_request_context import BotRequestContext
 from diffusers_mastodon_bot.bot_request_handlers.bot_request_handler import BotRequestHandler
+from diffusers_mastodon_bot.bot_request_handlers.diffuse_game_handler import DiffuseGameHandler
 from diffusers_mastodon_bot.bot_request_handlers.diffuse_me_handler import DiffuseMeHandler
 from diffusers_mastodon_bot.bot_request_handlers.proc_args_context import ProcArgsContext
 from diffusers_mastodon_bot.utils import rip_out_html
@@ -22,7 +23,7 @@ from diffusers_mastodon_bot.utils import rip_out_html
 class AppStreamListener(mastodon.StreamListener):
     def __init__(self, mastodon_client, diffusers_pipeline: diffusers.pipelines.StableDiffusionPipeline,
                  mention_to_url: str,
-                 tag_name='diffuse_me',
+                 req_handlers: List[BotRequestHandler] = None,
                  default_visibility='unlisted', output_save_path='./diffused_results',
                  toot_listen_start: Union[str, None] = None, toot_listen_end: Union[str, None] = None,
                  toot_listen_start_cw: Union[str, None] = None,
@@ -38,7 +39,6 @@ class AppStreamListener(mastodon.StreamListener):
                  proc_kwargs: Union[None, Dict[str, any]] = None):
         self.mastodon: Mastodon = mastodon_client
         self.mention_to_url = mention_to_url
-        self.tag_name = tag_name
         self.diffusers_pipeline: diffusers.pipelines.StableDiffusionPipeline = diffusers_pipeline
         self.output_save_path = output_save_path
         self.no_image_on_any_nsfw = no_image_on_any_nsfw
@@ -81,7 +81,7 @@ class AppStreamListener(mastodon.StreamListener):
         self.toot_listen_end = toot_listen_end
 
         if self.toot_listen_start is None:
-            self.toot_listen_start = f'listening (diffusers_mastodon_bot)\n\nsend me a prompt with hashtag # {tag_name}'
+            self.toot_listen_start = f'listening (diffusers_mastodon_bot)'
 
         if self.toot_listen_end is None:
             self.toot_listen_end = f'exiting (diffusers_mastodon_bot)\n\ndo not send me anymore'
@@ -96,12 +96,7 @@ class AppStreamListener(mastodon.StreamListener):
             device_name=self.device
         )
 
-        self.req_handlers: List[BotRequestHandler] = [
-            DiffuseMeHandler(
-                pipe=diffusers_pipeline,
-                tag_name=tag_name
-            )
-        ]
+        self.req_handlers = req_handlers
 
         def exit_toot():
             if toot_on_start_end:

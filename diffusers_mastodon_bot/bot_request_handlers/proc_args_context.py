@@ -1,9 +1,14 @@
-from typing import Dict
+from typing import *
 
+
+class Prompts(TypedDict):
+    positive: str
+    negative: str
+    negative_with_default: Optional[str]
 
 class ProcArgsContext:
     def __init__(self,
-                 prompts: str,
+                 prompts: Prompts,
                  proc_kwargs: Dict[str, any],
                  target_image_count: int,
                  ):

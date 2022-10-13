@@ -1,7 +1,9 @@
+import typing
 from mastodon import Mastodon
 
 from diffusers_mastodon_bot.bot_context import BotContext
 from typing import *
+
 
 class BotRequestContext:
     def __init__(self,
@@ -23,6 +25,8 @@ class BotRequestContext:
         # [{'name': 'testasdf', 'url': 'https://don.naru.cafe/tags/testasdf'}]
         self.tag_name_list = set(map(lambda tag: tag['name'], status['tags']))
 
+        self.payload: Dict[typing.Type, Dict[str, any]] = {}
+
     def contains_tag_name(self, tag_name):
         return tag_name in self.tag_name_list
 
@@ -36,4 +40,17 @@ class BotRequestContext:
 
         return self.mastodon.status_reply(status, body, **kwargs)
 
+    def set_payload(self, klass: typing.Type, key: str, value: any):
+        if klass not in self.payload.keys():
+            self.payload[klass] = {}
 
+        self.payload[klass][key] = value
+
+    def get_payload(self, klass: typing.Type, key: str) -> Optional[any]:
+        if klass not in self.payload.keys():
+            return None
+
+        if key not in self.payload[klass]:
+            return None
+
+        return self.payload[klass][key]
