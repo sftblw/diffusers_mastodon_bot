@@ -227,6 +227,7 @@ class DiffuseGameHandler(BotRequestHandler):
 
     def close_game(self, new_game_ctx: BotRequestContext):
         logging.info("closing game")
+
         this_game = self.current_game
         self.current_game = None
 
