@@ -273,3 +273,6 @@ class AppStreamListener(mastodon.StreamListener):
         }
 
         return prompts, proc_kwargs, target_image_count
+
+    def on_unknown_event(self, name, unknown_event=None):
+        logging.info(f'unknown event {name}, {unknown_event}')
