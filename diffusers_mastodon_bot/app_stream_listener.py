@@ -125,6 +125,10 @@ class AppStreamListener(mastodon.StreamListener):
         # if noti_type != 'mention':
         #     return
 
+        if 'status' not in notification:
+            logging.log('no status found on notification')
+            return
+
         status = notification['status']
 
         try:

@@ -120,7 +120,7 @@ def main():
             pipe=pipe,
             tag_name='diffuse_game',
             messages=diffusion_game_messages,
-            response_duration_sec=60 * 5
+            response_duration_sec=60 * 30
         )
     ]
 
