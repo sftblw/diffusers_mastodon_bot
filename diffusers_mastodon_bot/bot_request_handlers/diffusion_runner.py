@@ -85,7 +85,7 @@ class DiffusionRunner:
         processing_body = ''
 
         # noinspection PyUnresolvedReferences
-        tokenizer: transformers.CLIPTokenizer = pipe.tokenizer
+        tokenizer: transformers.CLIPTokenizer = pipe.tokenizer  # type: ignore
 
         positive_input_form = DiffusionRunner.prompt_as_input_text(args_ctx.prompts['positive'], tokenizer)
 

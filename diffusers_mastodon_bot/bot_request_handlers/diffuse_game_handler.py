@@ -57,6 +57,8 @@ class DiffuseGameSubmission(TypedDict):
     positive: Optional[str]
     negative: Optional[str]
     score: float
+    score_positive: float
+    score_negative: float
 
 
 class DiffusionGameStatus:
@@ -121,18 +123,20 @@ class DiffusionGameStatus:
                 return -1
 
         # -1 ~ 1
-        scores = [
-            get_similarity_score(positive_prompt, self.gold_positive_prompt, self.gold_positive_embedding_mean),
-            get_similarity_score(negative_prompt, self.gold_negative_prompt, self.gold_negative_embedding_mean),
-        ]
+        score_positive = get_similarity_score(positive_prompt, self.gold_positive_prompt, self.gold_positive_embedding_mean)
+        score_negative = get_similarity_score(negative_prompt, self.gold_negative_prompt, self.gold_negative_embedding_mean)
 
         # 0 ~ 1
+        score_positive = (score_positive + 1) / 2
+        score_negative = (score_negative + 1) / 2
+
         scores = [
-            (cos_score + 1) / 2
-            for cos_score in scores
+            score_positive,
+            score_negative
         ]
 
         score = statistics.harmonic_mean(scores)
+
         submission: DiffuseGameSubmission = {
             "status": status,
             "account_url": status['account']['url'],
@@ -140,12 +144,14 @@ class DiffusionGameStatus:
             "display_name": status['account']['display_name'],
             "positive": positive_prompt,
             "negative": negative_prompt,
-            "score": score
+            "score": score,
+            "score_positive": score_positive,
+            "score_negative": score_negative
         }
 
         self.submissions[status['account']['url']] = submission
 
-        logging.info(f'game submission added by {status["account"]["acct"]}')
+        logging.info(f'game submission added by {status["account"]["acct"]} - positive score {score_positive}, negative score {score_negative}')
 
 
 class DiffuseGameHandler(BotRequestHandler):
