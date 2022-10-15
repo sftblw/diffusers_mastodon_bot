@@ -66,7 +66,7 @@ class DiffusionGameStatus:
                  status: Dict[str, Any],
                  submitter_url: str,
                  submitter_acct: str,
-                 positive_prompt: str,
+                 positive_prompt: Optional[str],
                  negative_prompt: Optional[str]
                  ):
         self.tokenizer = tokenizer
@@ -100,10 +100,10 @@ class DiffusionGameStatus:
         self.submissions: Dict[str, DiffuseGameSubmission] = {}
 
     def prompt_as_embedding(self, prompt: str) -> torch.Tensor:
-        prompt = DiffusionRunner.embed_prompt(
+        prompt_tensor: torch.Tensor = DiffusionRunner.embed_prompt(
             prompt=prompt, tokenizer=self.tokenizer, text_encoder=self.text_encoder)
-        prompt = prompt.to('cpu')
-        return prompt
+        prompt_tensor = prompt_tensor.to('cpu')
+        return prompt_tensor
 
     def set_submission(self, status: Dict[str, Any], positive_prompt: Optional[str], negative_prompt: Optional[str]):
         def get_similarity_score(prompt, gold_prompt, gold_mean):
@@ -157,7 +157,7 @@ class DiffuseGameHandler(BotRequestHandler):
                  pipe: diffusers.pipelines.StableDiffusionPipeline,
                  tag_name: str = 'diffuse_game',
                  response_duration_sec: float = 60 * 1,
-                 messages: DiffuseGameMessages = None
+                 messages: Optional[DiffuseGameMessages] = None
                  ):
 
         self.pipe: diffusers.pipelines.StableDiffusionPipeline = pipe
@@ -231,6 +231,13 @@ class DiffuseGameHandler(BotRequestHandler):
         this_game = self.current_game
         self.current_game = None
 
+        if this_game is None:
+            logging.info("this_game is None, early returning.")
+            return
+        if this_game.status is None:
+            logging.info("this_game.status is None, early returning.")
+            return
+
         answer_info = ''
         answer_info += self.messages['question_by'].replace('{account}', '@' + this_game.submitter_acct)
         if this_game.gold_positive_prompt is not None:
@@ -246,7 +253,7 @@ class DiffuseGameHandler(BotRequestHandler):
                                   visibility="unlisted", spoiler_text=self.messages['game_no_player_cw'], untag=True)
             return
 
-        scores: List[(str, DiffuseGameSubmission)] = \
+        scores: List[DiffuseGameSubmission] = \
             sorted(this_game.submissions.values(),
                    key=lambda submission: submission['score'],
                    reverse=True)
@@ -276,7 +283,7 @@ class DiffuseGameHandler(BotRequestHandler):
                               untag=True)
 
     def respond_to(self, ctx: BotRequestContext, args_ctx: ProcArgsContext) -> bool:
-        reply_type: DiffuseGameHandler.RequestType = ctx.get_payload(type(self), 'req_type')
+        reply_type: DiffuseGameHandler.RequestType = ctx.get_payload(type(self), 'req_type')  # type: ignore
 
         if reply_type == DiffuseGameHandler.RequestType.NewGame:
             self.handle_new_game(ctx, args_ctx)
@@ -310,7 +317,7 @@ class DiffuseGameHandler(BotRequestHandler):
         if diffusion_result["has_any_nsfw"] and ctx.bot_ctx.no_image_on_any_nsfw:
             media_ids = None
 
-        current_game_status = ctx.mastodon.status_post(
+        current_game_status: Dict[str, Any] = ctx.mastodon.status_post(
             self.messages['new_game_start_announce'],
             media_ids=media_ids,
             visibility='unlisted',
@@ -331,7 +338,7 @@ class DiffuseGameHandler(BotRequestHandler):
         self.current_game_timer.start()
 
         ctx.reply_to(in_progress_status, self.messages['new_game_start_success']
-                     + '\n\n' + self.current_game.status['url'])
+                     + '\n\n' + self.current_game.status['url'], spoiler_text='')
 
         logging.info(f'sent')
 

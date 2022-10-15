@@ -47,7 +47,7 @@ class DiffusionRunner:
         )
 
         # torch.Size([1, 77])
-        return text_inputs.input_ids
+        return text_inputs.input_ids.squeeze(0)[0:77].unsqueeze(0)
 
     @staticmethod
     def prompt_as_input_text(prompt: str, tokenizer: CLIPTokenizer) -> str:
@@ -198,7 +198,7 @@ class DiffusionRunner:
                 upload_result = ctx.mastodon.media_post(png_bytes, 'image/png')
                 result["images_list_posted"].append(upload_result)
             except Exception as ex:
-                logging.error(f'error on image upload:\n{traceback.format_exception(ex)}')
+                logging.error(f'error on image upload:\n' + "\n  ".join(traceback.format_exception(ex)))
                 pass
 
         return result
