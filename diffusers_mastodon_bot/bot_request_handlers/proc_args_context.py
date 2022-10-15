@@ -9,7 +9,7 @@ class Prompts(TypedDict):
 class ProcArgsContext:
     def __init__(self,
                  prompts: Prompts,
-                 proc_kwargs: Dict[str, any],
+                 proc_kwargs: Dict[str, Any],
                  target_image_count: int,
                  ):
         self.prompts = prompts

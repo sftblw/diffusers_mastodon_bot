@@ -8,6 +8,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 from typing import *
+import traceback
 
 import diffusers.pipelines
 import torch
@@ -26,7 +27,7 @@ from ..utils import image_grid
 class DiffusionRunner:
     class Result(TypedDict):
         image_filenames: List[str]
-        images_list_posted: List[any]
+        images_list_posted: List[Any]
         has_any_nsfw: bool
         time_took: str
 
@@ -197,7 +198,7 @@ class DiffusionRunner:
                 upload_result = ctx.mastodon.media_post(png_bytes, 'image/png')
                 result["images_list_posted"].append(upload_result)
             except Exception as ex:
-                logging.error(f'error on image upload: {ex}')
+                logging.error(f'error on image upload:\n{traceback.format_exception(ex)}')
                 pass
 
         return result

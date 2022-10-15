@@ -7,6 +7,8 @@ import re
 from pathlib import Path
 from enum import Enum
 
+import traceback
+
 import diffusers.pipelines
 import mastodon
 from mastodon import Mastodon
@@ -23,7 +25,7 @@ from diffusers_mastodon_bot.utils import rip_out_html
 class AppStreamListener(mastodon.StreamListener):
     def __init__(self, mastodon_client, diffusers_pipeline: diffusers.pipelines.StableDiffusionPipeline,
                  mention_to_url: str,
-                 req_handlers: List[BotRequestHandler] = None,
+                 req_handlers: List[BotRequestHandler] = [],
                  default_visibility='unlisted', output_save_path='./diffused_results',
                  toot_listen_start: Union[str, None] = None, toot_listen_end: Union[str, None] = None,
                  toot_listen_start_cw: Union[str, None] = None,
@@ -36,7 +38,7 @@ class AppStreamListener(mastodon.StreamListener):
                  toot_on_start_end=True,
                  no_image_on_any_nsfw=True,
                  default_negative_prompt: Optional[str] = None,
-                 proc_kwargs: Union[None, Dict[str, any]] = None):
+                 proc_kwargs: Union[None, Dict[str, Any]] = None):
         self.mastodon: Mastodon = mastodon_client
         self.mention_to_url = mention_to_url
         self.diffusers_pipeline: diffusers.pipelines.StableDiffusionPipeline = diffusers_pipeline
@@ -115,7 +117,7 @@ class AppStreamListener(mastodon.StreamListener):
 
     def status_contains_target_tag(self, status):
         # [{'name': 'testasdf', 'url': 'https://don.naru.cafe/tags/testasdf'}]
-        tags_list: List[Dict[str, any]] = status['tags']
+        tags_list: List[Dict[str, Any]] = status['tags']
         if self.tag_name not in map(lambda tag: tag['name'], tags_list):
             return False
         return True
@@ -126,7 +128,7 @@ class AppStreamListener(mastodon.StreamListener):
         #     return
 
         if 'status' not in notification:
-            logging.log('no status found on notification')
+            logging.info('no status found on notification')
             return
 
         status = notification['status']
@@ -134,13 +136,13 @@ class AppStreamListener(mastodon.StreamListener):
         try:
             result = self.handle_updates(status, is_self_response=False)
             if result.value >= 500:
-                logging.warning(f'response failed for {status["url"]}')
+                logging.warning(f'response failed for {status["url"]}: {result}')
         except Exception as ex:
-            print(f'error on notification respond: {str(ex)}')
+            logging.error(f'error on notification respond:\n{traceback.format_exception(ex)}')
             pass
 
     # self response, without notification
-    def on_update(self, status: Dict[str, any]):
+    def on_update(self, status: Dict[str, Any]):
         super().on_update(status)
 
         account = status['account']
@@ -152,7 +154,7 @@ class AppStreamListener(mastodon.StreamListener):
             if result.value >= 500:
                 logging.warning(f'response failed for {status["url"]}')
         except Exception as ex:
-            logging.error(f'error on self status respond: {str(ex)}')
+            logging.error(f'error on self status respond:\n{traceback.format_exception(ex)}')
             pass
 
     class HandleUpdateResult(Enum):
@@ -160,7 +162,7 @@ class AppStreamListener(mastodon.StreamListener):
         no_eligible = 404
         internal_error = 500
 
-    def handle_updates(self, status: Dict[str, any], is_self_response: bool = False) -> HandleUpdateResult:
+    def handle_updates(self, status: Dict[str, Any], is_self_response: bool = False) -> HandleUpdateResult:
         req_ctx = BotRequestContext(
             status=status,
             mastodon=self.mastodon,

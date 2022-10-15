@@ -52,7 +52,7 @@ def read_text_file(filename: str) -> Union[str, None]:
     return content
 
 
-def load_json_dict(filename: str) -> Union[None, Dict[str, any]]:
+def load_json_dict(filename: str) -> Union[None, Dict[str, Any]]:
     result = read_text_file(filename)
     if result is not None:
         return json.loads(result)

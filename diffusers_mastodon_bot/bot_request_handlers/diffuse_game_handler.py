@@ -50,7 +50,7 @@ class DiffuseGameMessages(TypedDict):
 
 
 class DiffuseGameSubmission(TypedDict):
-    status: Dict[str, any]
+    status: Dict[str, Any]
     account_url: str
     acct_as_mention: str
     display_name: str
@@ -63,7 +63,7 @@ class DiffusionGameStatus:
     def __init__(self,
                  tokenizer: transformers.CLIPTokenizer,
                  text_encoder: transformers.CLIPTextModel,
-                 status: Dict[str, any],
+                 status: Dict[str, Any],
                  submitter_url: str,
                  submitter_acct: str,
                  positive_prompt: str,
@@ -73,7 +73,7 @@ class DiffusionGameStatus:
         self.text_encoder = text_encoder
 
         # status or None
-        self.status: Optional[Dict[str, any]] = status
+        self.status: Optional[Dict[str, Any]] = status
         self.submitter_url = submitter_url
         self.submitter_acct = submitter_acct
 
@@ -105,7 +105,7 @@ class DiffusionGameStatus:
         prompt = prompt.to('cpu')
         return prompt
 
-    def set_submission(self, status: Dict[str, any], positive_prompt: Optional[str], negative_prompt: Optional[str]):
+    def set_submission(self, status: Dict[str, Any], positive_prompt: Optional[str], negative_prompt: Optional[str]):
         def get_similarity_score(prompt, gold_prompt, gold_mean):
             if prompt is not None and gold_prompt is not None:
                 # torch.Size([1, 77, 768]) -> (indexing 0) -> (77, 768)
