@@ -19,7 +19,8 @@ from torch import autocast
 from diffusers_mastodon_bot.bot_request_handlers.bot_request_handler import BotRequestHandler
 from diffusers_mastodon_bot.bot_request_handlers.bot_request_context import BotRequestContext
 from diffusers_mastodon_bot.bot_request_handlers.diffusion_runner import DiffusionRunner
-from diffusers_mastodon_bot.bot_request_handlers.game.diffuse_game_message import DiffuseGameMessages
+from diffusers_mastodon_bot.bot_request_handlers.game.diffuse_game_message import DiffuseGameMessages, \
+    diffusion_game_message_defaults
 from diffusers_mastodon_bot.bot_request_handlers.game.diffuse_game_status import DiffuseGameStatus
 from diffusers_mastodon_bot.bot_request_handlers.game.diffuse_game_submission import DiffuseGameSubmission
 from diffusers_mastodon_bot.bot_request_handlers.proc_args_context import ProcArgsContext
@@ -28,6 +29,10 @@ from diffusers_mastodon_bot.utils import image_grid
 import statistics
 import math
 from threading import Timer
+
+
+def format_score(score: float):
+    return f'{round(score * 100)}%'
 
 
 class DiffuseGameHandler(BotRequestHandler):
@@ -39,6 +44,7 @@ class DiffuseGameHandler(BotRequestHandler):
                  pipe: diffusers.pipelines.StableDiffusionPipeline,
                  tag_name: str = 'diffuse_game',
                  response_duration_sec: float = 60 * 1,
+                 score_early_end_condition = 0.85,
                  messages: Optional[DiffuseGameMessages] = None
                  ):
 
@@ -48,38 +54,9 @@ class DiffuseGameHandler(BotRequestHandler):
 
         self.response_duration_sec: float = response_duration_sec
 
-        if messages is None:
-            messages = {
-                "new_game_already_exists":
-                    "A diffusion game is already in progress.",
-                "new_game_should_be_direct":
-                    "To create new game, send me # diffuse_game with \"direct\" message (aka private).",
-                "new_game_prompt_is_missing":
-                    "Your prompt is missing! Please provide me # diffuse_me with prompt to generate an image, with DM.",
-                "new_game_start_announce":
-                    "Diffusion guessing game is started! guess the prompt and reply to this message! \n\n#bot_message",
-                "new_game_start_success":
-                    "ok! new game is generated! (You are not allowed to submit guesses, though!)",
-                "answer_submission_game_does_not_exist":
-                    "This game does not exist anymore!",
-                "answer_submission_is_done_by_submitter":
-                    "You are not allowed to answer to your question. Anyway You know it, isn't it?",
-                "answer_submission_was_by_cw":
-                    "Answer was...",
-                "game_no_player":
-                    "no players joined guessing game this time...",
-                "game_no_player_cw":
-                    "no player joined...",
-                "game_end":
-                    "Game end!",
-                "game_winner":
-                    "{winner} is the final winner!",
+        self.score_early_end_condition = score_early_end_condition
 
-                "question_by": "This question was prompted by {account}!",
-                "gold_positive_prompt": "prompt was:\n{prompt}",
-                "gold_negative_prompt": "negative prompt was:\n{prompt}",
-            }
-        self.messages: DiffuseGameMessages = messages
+        self.messages: DiffuseGameMessages = diffusion_game_message_defaults(messages)
 
         self.current_game: Optional[DiffuseGameStatus] = None
         self.current_game_timer: Optional[Timer] = None
@@ -88,7 +65,7 @@ class DiffuseGameHandler(BotRequestHandler):
         # new game
         is_new_game = (
                 ctx.contains_tag_name(self.tag_name)
-                and ctx.mentions_bot()
+                and ctx.not_from_self()
         )
 
         if is_new_game:
@@ -97,17 +74,34 @@ class DiffuseGameHandler(BotRequestHandler):
 
         # reply to game
         is_reply_to_game = (
-                self.current_game is not None
-                and ctx.status.in_reply_to_id == self.current_game.status.id
+            self.current_game is not None
+            and ctx.status.in_reply_to_id == self.current_game.status.id
         )
 
-        if is_reply_to_game:
+        is_reply_to_game_reply = (
+            self.current_game is not None
+            and ctx.status.in_reply_to_id in self.current_game.eligible_status_ids_for_reply
+        )
+
+        if is_reply_to_game or (is_reply_to_game_reply and ctx.not_from_self()):
             ctx.set_payload(type(self), "req_type", DiffuseGameHandler.RequestType.AnswerSubmission)
             return True
 
         return False
 
-    def close_game(self, new_game_ctx: BotRequestContext):
+    def respond_to(self, ctx: BotRequestContext, args_ctx: ProcArgsContext) -> bool:
+        reply_type: DiffuseGameHandler.RequestType = ctx.get_payload(type(self), 'req_type')  # type: ignore
+
+        if reply_type == DiffuseGameHandler.RequestType.NewGame:
+            self.handle_new_game(ctx, args_ctx)
+            return True
+        elif reply_type == DiffuseGameHandler.RequestType.AnswerSubmission:
+            self.handle_answer_submission(ctx, args_ctx)
+            return True
+
+        return False
+
+    def close_game(self, any_ctx: BotRequestContext, early_end_status: Optional[Dict[str, Any]] = None):
         logging.info("closing game")
 
         this_game = self.current_game
@@ -121,7 +115,7 @@ class DiffuseGameHandler(BotRequestHandler):
             return
 
         answer_info = ''
-        answer_info += self.messages['question_by'].replace('{account}', '@' + this_game.submitter_acct)
+        answer_info += self.messages['question_by'].replace('{account}', '@' + this_game.questioner_acct)
         if this_game.gold_positive_prompt is not None:
             answer_info += '\n\n' + self.messages['gold_positive_prompt'] \
                 .replace('{prompt}', this_game.gold_positive_prompt)
@@ -131,8 +125,8 @@ class DiffuseGameHandler(BotRequestHandler):
 
         if len(this_game.submissions) == 0:
             message = self.messages['game_no_player'] + '\n\n' + answer_info
-            new_game_ctx.reply_to(this_game.status, message[0:480],
-                                  visibility="unlisted", spoiler_text=self.messages['game_no_player_cw'], untag=True)
+            any_ctx.reply_to(this_game.status, message[0:480],
+                             visibility="unlisted", spoiler_text=self.messages['game_no_player_cw'], untag=True)
             return
 
         scores: List[DiffuseGameSubmission] = \
@@ -144,10 +138,16 @@ class DiffuseGameHandler(BotRequestHandler):
             return (
                     f'{submission["display_name"][0:20]} '
                     + f'{submission["acct_as_mention"]} '
-                    + f'({math.floor(submission["score"] * 100)}%)'
+                    + f'({format_score(submission["score"])})'
             )
 
-        response_body = self.messages['game_end']
+        response_body = ''
+
+        if early_end_status is not None:
+            response_body += '\n\n' + self.messages['game_early_end']
+        else:
+            response_body += '\n\n' + self.messages['game_end']
+
         response_body += '\n\n' + self.messages['game_winner'].replace('{winner}', format_submission(scores[0]))
 
         if len(scores) >= 1:
@@ -156,25 +156,15 @@ class DiffuseGameHandler(BotRequestHandler):
                 [f'rank {i + 2}. {format_submission(submission)}' for i, submission in enumerate(scores[1:])]
             )
 
-        result_status = new_game_ctx.reply_to(this_game.status, response_body[0:480], visibility="unlisted", untag=True)
+        response_body = response_body.strip()
+        result_status = any_ctx.mastodon.status_post(response_body[0:480], visibility="unlisted", in_reply_to_id=this_game.status['id'])
 
-        new_game_ctx.reply_to(result_status,
-                              answer_info[0:480],
-                              visibility="unlisted",
-                              spoiler_text=self.messages['answer_submission_was_by_cw'],
-                              untag=True)
-
-    def respond_to(self, ctx: BotRequestContext, args_ctx: ProcArgsContext) -> bool:
-        reply_type: DiffuseGameHandler.RequestType = ctx.get_payload(type(self), 'req_type')  # type: ignore
-
-        if reply_type == DiffuseGameHandler.RequestType.NewGame:
-            self.handle_new_game(ctx, args_ctx)
-            return True
-        elif reply_type == DiffuseGameHandler.RequestType.AnswerSubmission:
-            self.handle_answer_submission(ctx, args_ctx)
-            return True
-
-        return False
+        any_ctx.mastodon.status_post(
+            answer_info[0:480],
+            in_reply_to_id=result_status['id'],
+            visibility="unlisted",
+            spoiler_text=self.messages['answer_submission_was_by_cw'],
+            )
 
     def handle_new_game(self, ctx: BotRequestContext, args_ctx: ProcArgsContext) -> bool:
         if self.current_game is not None:
@@ -191,6 +181,7 @@ class DiffuseGameHandler(BotRequestHandler):
 
         # start
         in_progress_status = self.reply_in_progress(ctx, args_ctx)
+        in_progress_public_status = ctx.mastodon.status_post(self.messages['new_game_generation_in_progress'])
 
         diffusion_result: DiffusionRunner.Result = \
             DiffusionRunner.run_diffusion_and_upload(self.pipe, ctx, args_ctx)
@@ -203,15 +194,16 @@ class DiffuseGameHandler(BotRequestHandler):
             self.messages['new_game_start_announce'],
             media_ids=media_ids,
             visibility='unlisted',
-            sensitive=True
+            sensitive=True,
+            in_reply_to_id=in_progress_public_status['id']
         )
 
         self.current_game = DiffuseGameStatus(
             tokenizer=self.pipe.tokenizer,
             text_encoder=self.pipe.text_encoder,
             status=current_game_status,
-            submitter_url=ctx.status['account']['url'],
-            submitter_acct=ctx.status['account']['acct'],
+            questioner_url=ctx.status['account']['url'],
+            questioner_acct=ctx.status['account']['acct'],
             positive_prompt=args_ctx.prompts['positive'],
             negative_prompt=args_ctx.prompts['negative']
         )
@@ -220,7 +212,7 @@ class DiffuseGameHandler(BotRequestHandler):
         self.current_game_timer.start()
 
         ctx.reply_to(in_progress_status, self.messages['new_game_start_success']
-                     + '\n\n' + self.current_game.status['url'], spoiler_text='')
+                     + '\n\n' + self.current_game.status['url'], spoiler_text='', visibility='direct')
 
         logging.info(f'sent')
 
@@ -231,12 +223,57 @@ class DiffuseGameHandler(BotRequestHandler):
             ctx.reply_to(ctx.status, self.messages['answer_submission_game_does_not_exist'])
             return True  #
 
-        if self.current_game.submitter_url == ctx.status['account']['url']:
-            ctx.reply_to(ctx.status, self.messages['answer_submission_is_done_by_submitter'], visibility="direct")
+        submitter_url = ctx.status['account']['url']
+
+        if self.current_game.questioner_url == submitter_url:
+            ctx.reply_to(ctx.status, self.messages['answer_submission_is_done_by_questioner'], visibility="direct")
             return True  #
 
-        self.current_game.set_submission(ctx.status, args_ctx.prompts['positive'], args_ctx.prompts['negative'])
-        ctx.mastodon.status_favourite(ctx.status)
+        left_chance: int = self.current_game.left_chance_for(submitter_url)
+
+        if left_chance <= 0:
+            ctx.reply_to(ctx.status, self.messages['answer_submission_no_chances_left'])
+            return True
+
+        current_submission: DiffuseGameSubmission = self.current_game.set_submission(
+            ctx.status,
+            args_ctx.prompts['positive'],
+            args_ctx.prompts['negative']
+        )
+
+        left_chance -= 1
+
+        cur_score = current_submission['score']
+
+        if cur_score < self.score_early_end_condition:
+            message = ''
+
+            if left_chance >= 2:
+                message = self.messages['answer_submission_left_chance_many']
+            elif left_chance == 1:
+                message = self.messages['answer_submission_left_chance_last']
+            elif left_chance <= 0:
+                message = self.messages['answer_submission_left_chance_none']
+
+            message = (
+                message
+                .replace('{score}', format_score(cur_score))
+                .replace('{chance_count}', str(left_chance))
+            )
+
+            status = ctx.reply_to(ctx.status, message)
+
+            self.current_game.register_status_as_eligible_for_reply(ctx.status)
+            self.current_game.register_status_as_eligible_for_reply(status)
+
+        else:
+            ctx.reply_to(ctx.status,
+                         self.messages['answer_submission_perfect']
+                            .replace('{score}', format_score(cur_score))
+                            .replace('{score_early_end_condition}', format_score(self.score_early_end_condition))
+            )
+            self.current_game_timer.cancel()
+            self.close_game(any_ctx=ctx, early_end_status=ctx.status)
 
     def reply_in_progress(self, ctx: BotRequestContext, args_ctx: ProcArgsContext):
         processing_body = DiffusionRunner.make_processing_body(self.pipe, args_ctx=args_ctx)

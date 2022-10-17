@@ -29,7 +29,7 @@ class DiffuseMeHandler(BotRequestHandler):
 
     def is_eligible_for(self, ctx: BotRequestContext) -> bool:
         return ctx.contains_tag_name(self.tag_name) and (
-                ctx.mentions_bot() or ctx.is_self_response
+                ctx.not_from_self() or ctx.is_self_response
         )
 
     def respond_to(self, ctx: BotRequestContext, args_ctx: ProcArgsContext) -> bool:

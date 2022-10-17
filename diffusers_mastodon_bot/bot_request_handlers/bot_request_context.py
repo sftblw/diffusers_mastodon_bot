@@ -30,7 +30,7 @@ class BotRequestContext:
     def contains_tag_name(self, tag_name):
         return tag_name in self.tag_name_list
 
-    def mentions_bot(self):
+    def not_from_self(self):
         account = self.status['account']
         return account['url'] != self.bot_ctx.bot_acct_url
 

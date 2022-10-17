@@ -14,24 +14,26 @@ class DiffuseGameStatus:
                  tokenizer: transformers.CLIPTokenizer,
                  text_encoder: transformers.CLIPTextModel,
                  status: Dict[str, Any],
-                 submitter_url: str,
-                 submitter_acct: str,
+                 questioner_url: str,
+                 questioner_acct: str,
                  positive_prompt: Optional[str],
                  negative_prompt: Optional[str],
-                 left_chance = 3
+                 initial_chance = 5
                  ):
         self.tokenizer = tokenizer
         self.text_encoder = text_encoder
 
         # status or None
         self.status: Optional[Dict[str, Any]] = status
-        self.submitter_url = submitter_url
-        self.submitter_acct = submitter_acct
+        self.eligible_status_ids_for_reply: Set[Dict[str, Any]] = set()
+
+        self.questioner_url = questioner_url
+        self.questioner_acct = questioner_acct
 
         self.gold_positive_prompt: Optional[str] = positive_prompt
         self.gold_negative_prompt: Optional[str] = negative_prompt
 
-        self.left_chance = left_chance
+        self.initial_chance = initial_chance
 
         # tokenizer -> embedding -> last layer
         # torch.Size([1, 77, 768])
@@ -61,8 +63,16 @@ class DiffuseGameStatus:
     def set_submission(self,
                        status: Dict[str, Any],
                        positive_prompt: Optional[str],
-                       negative_prompt: Optional[str]
-                       ):
+                       negative_prompt: Optional[str],
+                       include_negative_on_final_score: bool = False
+                       ) -> DiffuseGameSubmission:
+        """
+        :param status: submission to process
+        :param positive_prompt: positive answer submission, preprocessed
+        :param negative_prompt: negative answer submission, preprocessed
+        :param include_negative_on_final_score: Most users do not count on negative answer. do not include them on final answer.
+        :return: new submission created
+        """
 
         def get_similarity_score(prompt, gold_prompt, gold_mean):
             if prompt is not None and gold_prompt is not None:
@@ -76,7 +86,7 @@ class DiffuseGameStatus:
             elif prompt is None and gold_prompt is None:
                 return 1
             else:
-                return -1
+                return 0
 
         # -1 ~ 1
         score_positive = get_similarity_score(positive_prompt, self.gold_positive_prompt, self.gold_positive_embedding_mean)
@@ -86,12 +96,20 @@ class DiffuseGameStatus:
         score_positive = (score_positive + 1) / 2
         score_negative = (score_negative + 1) / 2
 
-        scores = [
-            score_positive,
-            score_negative
-        ]
+        if include_negative_on_final_score:
+            scores = [
+                score_positive,
+                score_negative
+            ]
 
-        score = statistics.harmonic_mean(scores)
+            score = statistics.harmonic_mean(scores)
+        else:
+            score = score_positive
+
+        submitter_url = status['account']['url']
+        previous_submission: Optional[DiffuseGameSubmission] = (
+            self.submissions[submitter_url] if submitter_url in self.submissions.keys() else None
+        )
 
         submission: DiffuseGameSubmission = {
             "status": status,
@@ -102,9 +120,25 @@ class DiffuseGameStatus:
             "negative": negative_prompt,
             "score": score,
             "score_positive": score_positive,
-            "score_negative": score_negative
+            "score_negative": score_negative,
+            "left_chance": self.initial_chance - 1 if previous_submission is None else previous_submission['left_chance'] - 1
         }
 
-        self.submissions[status['account']['url']] = submission
+        if previous_submission is not None and previous_submission['score'] > submission['score']:
+            self.submissions[submitter_url]['left_chance'] = submission['left_chance']
+        else:
+            self.submissions[submitter_url] = submission
 
         logging.info(f'game submission added by {status["account"]["acct"]} - positive score {score_positive}, negative score {score_negative}')
+
+        return submission
+
+    def left_chance_for(self, submitter_url: str) -> int:
+
+        if submitter_url not in self.submissions.keys():
+            return self.initial_chance
+
+        return self.submissions[submitter_url]['left_chance']
+
+    def register_status_as_eligible_for_reply(self, status: Dict[str, Any]):
+        self.eligible_status_ids_for_reply.add(status['id'])

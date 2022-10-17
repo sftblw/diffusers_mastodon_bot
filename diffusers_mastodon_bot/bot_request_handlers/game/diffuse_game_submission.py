@@ -11,3 +11,4 @@ class DiffuseGameSubmission(TypedDict):
     score: float
     score_positive: float
     score_negative: float
+    left_chance: int
