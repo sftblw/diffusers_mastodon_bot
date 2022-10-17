@@ -5,6 +5,8 @@
         "To create new game, send me # diffuse_game with \"direct\" message (aka private).",
     "new_game_prompt_is_missing":
         "Your prompt is missing! Please provide me # diffuse_me with prompt to generate an image, with DM.",
+    "new_game_generation_in_progress":
+        "creating new diffusion game...",
     "new_game_start_announce":
         "Diffusion guessing game is started! guess the prompt and reply to this message! \n\n#bot_message",
     "new_game_start_success":
