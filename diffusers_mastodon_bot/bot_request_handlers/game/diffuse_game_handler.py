@@ -181,7 +181,10 @@ class DiffuseGameHandler(BotRequestHandler):
 
         # start
         in_progress_status = self.reply_in_progress(ctx, args_ctx)
-        in_progress_public_status = ctx.mastodon.status_post(self.messages['new_game_generation_in_progress'])
+        in_progress_public_status = ctx.mastodon.status_post(
+            self.messages['new_game_generation_in_progress'],
+            visibility="unlisted"
+        )
 
         diffusion_result: DiffusionRunner.Result = \
             DiffusionRunner.run_diffusion_and_upload(self.pipe, ctx, args_ctx)
