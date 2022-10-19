@@ -9,13 +9,11 @@ class BotRequestContext:
     def __init__(self,
                  status: Dict[str, Any],
                  mastodon: Mastodon,
-                 bot_ctx: BotContext,
-                 is_self_response: bool,
+                 bot_ctx: BotContext
                  ):
         self.status = status
         self.mastodon: Mastodon = mastodon
         self.bot_ctx = bot_ctx
-        self.is_self_response = is_self_response
 
         self.reply_visibility = status['visibility']
         if self.reply_visibility == 'public' or self.reply_visibility == 'direct':
@@ -29,6 +27,11 @@ class BotRequestContext:
 
     def contains_tag_name(self, tag_name):
         return tag_name in self.tag_name_list
+
+    def mentions_bot(self):
+        # mention dicts
+        mentions = self.status['mentions']
+        return self.bot_ctx.bot_acct_url in map(lambda x: x['url'], mentions)
 
     def not_from_self(self):
         account = self.status['account']

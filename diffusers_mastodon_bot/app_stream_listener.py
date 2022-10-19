@@ -33,6 +33,8 @@ class AppStreamListener(mastodon.StreamListener):
                  image_count=1,
                  max_image_count=1,
                  image_tile_xy=(1, 1),
+                 image_tile_auto_expand=False,
+                 image_max_attachment_count=4,
                  max_batch_process=2,
                  device: str = 'cuda',
                  toot_on_start_end=True,
@@ -50,6 +52,8 @@ class AppStreamListener(mastodon.StreamListener):
         if isinstance(image_tile_xy, list):
             image_tile_xy = tuple(image_tile_xy)
         self.image_tile_xy = image_tile_xy
+        self.image_tile_auto_expand = image_tile_auto_expand
+        self.image_max_attachment_count = image_max_attachment_count
 
         self.image_count = image_count \
             if 1 <= (image_count / (image_tile_xy[0] * image_tile_xy[1])) <= 4 \
@@ -71,7 +75,7 @@ class AppStreamListener(mastodon.StreamListener):
 
         self.strippers = [
             re.compile('@[a-zA-Z0-9._-]+'),
-            re.compile('#[a-zA-Z0-9_-]+'),
+            re.compile('#\w+'),
             re.compile('[ \r\n\t]+'),
         ]
 
@@ -95,6 +99,8 @@ class AppStreamListener(mastodon.StreamListener):
             delete_processing_message=self.delete_processing_message,
             no_image_on_any_nsfw=self.no_image_on_any_nsfw,
             image_tile_xy=self.image_tile_xy,
+            image_tile_auto_expand=self.image_tile_auto_expand,
+            image_max_attachment_count=self.image_max_attachment_count,
             device_name=self.device
         )
 
@@ -115,13 +121,6 @@ class AppStreamListener(mastodon.StreamListener):
                 visibility=default_visibility
             )
 
-    def status_contains_target_tag(self, status):
-        # [{'name': 'testasdf', 'url': 'https://don.naru.cafe/tags/testasdf'}]
-        tags_list: List[Dict[str, Any]] = status['tags']
-        if self.tag_name not in map(lambda tag: tag['name'], tags_list):
-            return False
-        return True
-
     def on_notification(self, notification):
         # noti_type = notification['type']
         # if noti_type != 'mention':
@@ -134,7 +133,7 @@ class AppStreamListener(mastodon.StreamListener):
         status = notification['status']
 
         try:
-            result = self.handle_updates(status, is_self_response=False)
+            result = self.handle_updates(status)
             if result.value >= 500:
                 logging.warning(f'response failed for {status["url"]}: {result}')
         except Exception as ex:
@@ -150,7 +149,7 @@ class AppStreamListener(mastodon.StreamListener):
             return
 
         try:
-            result = self.handle_updates(status, is_self_response=True)
+            result = self.handle_updates(status)
             if result.value >= 500:
                 logging.warning(f'response failed for {status["url"]}')
         except Exception as ex:
@@ -162,12 +161,11 @@ class AppStreamListener(mastodon.StreamListener):
         no_eligible = 404
         internal_error = 500
 
-    def handle_updates(self, status: Dict[str, Any], is_self_response: bool = False) -> HandleUpdateResult:
+    def handle_updates(self, status: Dict[str, Any]) -> HandleUpdateResult:
         req_ctx = BotRequestContext(
             status=status,
             mastodon=self.mastodon,
-            bot_ctx=self.bot_ctx,
-            is_self_response=is_self_response,
+            bot_ctx=self.bot_ctx
         )
 
         for handler in self.req_handlers:

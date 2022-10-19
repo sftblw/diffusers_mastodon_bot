@@ -6,6 +6,7 @@ class Prompts(TypedDict):
     negative: str
     negative_with_default: Optional[str]
 
+
 class ProcArgsContext:
     def __init__(self,
                  prompts: Prompts,

@@ -161,29 +161,13 @@ class DiffusionRunner:
 
         logging.info(f'preparing images to upload')
 
-        image_grid_unit = int(ctx.bot_ctx.image_tile_xy[0] * ctx.bot_ctx.image_tile_xy[1])
-        pil_image_grids = []
-        if args_ctx.target_image_count == 1:
-            pil_image_grids = generated_images_raw_pil
-        else:
-            for i in range(0, len(generated_images_raw_pil), image_grid_unit):
-                cur_pil_image_slice = generated_images_raw_pil[i: i + image_grid_unit]
-
-                image_slice_len = len(cur_pil_image_slice)
-
-                max_x = ctx.bot_ctx.image_tile_xy[0] \
-                    if image_slice_len >= ctx.bot_ctx.image_tile_xy[0] \
-                    else ctx.bot_ctx.image_tile_xy[0] % len(cur_pil_image_slice)
-                max_y = math.ceil(image_slice_len / ctx.bot_ctx.image_tile_xy[0])
-
-                fitting_square = math.pow(math.floor(math.sqrt(image_grid_unit)), 2)
-
-                if fitting_square > max_x * max_y:
-                    max_x = fitting_square
-                    max_y = max_y
-
-                grid_image = image_grid(cur_pil_image_slice, max_x, max_y)
-                pil_image_grids.append(grid_image)
+        pil_image_grids = DiffusionRunner.image_grid_by_cfg(
+            pil_images=generated_images_raw_pil,
+            image_tile_x = ctx.bot_ctx.image_tile_xy[0],
+            image_tile_y = ctx.bot_ctx.image_tile_xy[1],
+            image_tile_auto_expand = ctx.bot_ctx.image_tile_auto_expand,
+            max_attachment_count = ctx.bot_ctx.image_max_attachment_count
+        )
 
         logging.info(f'uploading {len(generated_images_raw_pil)} images')
 
@@ -202,3 +186,75 @@ class DiffusionRunner:
                 pass
 
         return result
+
+    @staticmethod
+    def image_grid_by_cfg(
+            pil_images: List[Image],
+            image_tile_x: int,
+            image_tile_y: int,
+            image_tile_auto_expand: bool,
+            max_attachment_count: int
+    ):
+        """
+        :param pil_images: raw PIL images
+        :param image_tile_x: columns to tile
+        :param image_tile_y: rows to tile
+        :param image_tile_auto_expand: changes tile x and y dynamically to spread images across attachment
+        :param max_attachment_count: 4 (mastodon)
+        :return:
+        """
+        images_count = len(pil_images)
+        if images_count == 1:
+            return pil_images
+
+        image_grid_unit = int(image_tile_x * image_tile_y)
+
+        images_grouped: List[List[Image]] = []
+
+        # maximum square size, smaller than image_tile_x & image_tile_y
+        fitting_square = math.pow(math.floor(math.sqrt(image_grid_unit)), 2)
+
+        # spread
+        if image_tile_auto_expand and len(pil_images) < max_attachment_count * image_grid_unit:
+            for start_i in range(0, max_attachment_count):
+                # [0::10] https://stackoverflow.com/a/1403693/4394750
+                cur_images_group = pil_images[start_i::max_attachment_count]
+                images_grouped.append(cur_images_group)
+
+            first_group_len = len(images_grouped[0])
+
+            fitting_square = math.pow(math.floor(math.sqrt(first_group_len)), 2)
+
+            # x * y = first_group_len
+            # => x * x * (ratio=y/x) = first_group_len
+            # => x * x = first_group_len * (reverse_ratio=x/y)
+            # => x = sqrt ( ^ ), y = x / (x/y)
+            x_of_y = image_tile_x / image_tile_y
+            image_tile_x = math.sqrt(first_group_len * x_of_y)
+            image_tile_y = math.ceil(image_tile_x / x_of_y)
+            image_tile_x = math.ceil(image_tile_x)
+
+        # group by predefined grid size
+        else:
+            for i in range(0, len(pil_images), image_grid_unit):
+                cur_images_group = pil_images[i: i + image_grid_unit]
+                images_grouped.append(cur_images_group)
+
+        pil_image_grids = []
+
+        for image_group in images_grouped:
+            image_slice_len = len(image_group)
+
+            # calculate
+            max_y = image_tile_y \
+                if image_slice_len >= image_tile_x \
+                else image_tile_y % len(image_group)
+            max_x = math.ceil(image_slice_len / image_tile_y)
+
+            if fitting_square > max_x * max_y:
+                max_x = fitting_square
+                max_y = max_y
+
+            grid_image = image_grid(image_group, max_x, max_y)
+            pil_image_grids.append(grid_image)
+        return pil_image_grids

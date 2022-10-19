@@ -22,14 +22,25 @@ from ..utils import image_grid
 
 
 class DiffuseMeHandler(BotRequestHandler):
-    def __init__(self, pipe: diffusers.pipelines.StableDiffusionPipeline, tag_name: str = 'diffuse_me'):
+    def __init__(self,
+                 pipe: diffusers.pipelines.StableDiffusionPipeline,
+                 tag_name: str = 'diffuse_me',
+                 allow_self_request_only: bool = False
+                 ):
         self.pipe = pipe
         self.tag_name = tag_name
+        self.allow_self_request_only = allow_self_request_only
         self.re_strip_special_token = re.compile('<\|.*?\|>')
 
     def is_eligible_for(self, ctx: BotRequestContext) -> bool:
-        return ctx.contains_tag_name(self.tag_name) and (
-                ctx.not_from_self() or ctx.is_self_response
+        contains_hash = ctx.contains_tag_name(self.tag_name)
+        if not contains_hash:
+            return False
+
+        return (
+            ( ctx.mentions_bot() and ctx.not_from_self() and not self.allow_self_request_only)
+            or
+            not ctx.not_from_self()
         )
 
     def respond_to(self, ctx: BotRequestContext, args_ctx: ProcArgsContext) -> bool:
@@ -74,6 +85,9 @@ class DiffuseMeHandler(BotRequestHandler):
                                   spoiler_text=spoiler_text,
                                   sensitive=True
                                   )
+
+        if ctx.bot_ctx.delete_processing_message:
+            ctx.mastodon.status_delete(in_progress_status)
 
         logging.info(f'sent')
 
