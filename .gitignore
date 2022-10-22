@@ -1,6 +1,8 @@
 venv
 venv_*
 
+hf_cache
+
 condaenv
 condaenv_*
 
