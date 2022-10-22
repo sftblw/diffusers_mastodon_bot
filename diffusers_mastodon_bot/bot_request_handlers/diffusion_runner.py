@@ -279,7 +279,7 @@ class DiffusionRunner:
             image_filenames.append(image_filename)
 
         if save_args:
-            text_filename = str(Path(ctx.bot_ctx.output_save_path, filename_root + f'_{idx}' + '.txt').resolve())
+            text_filename = str(Path(ctx.bot_ctx.output_save_path, filename_root + '.txt').resolve())
             Path(text_filename).write_text(json.dumps(args_ctx, default=vars))
 
         return image_filenames
