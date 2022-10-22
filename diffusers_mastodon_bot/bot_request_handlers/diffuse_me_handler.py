@@ -45,40 +45,26 @@ class DiffuseMeHandler(BotRequestHandler):
 
     def respond_to(self, ctx: BotRequestContext, args_ctx: ProcArgsContext) -> bool:
         # start
-        in_progress_status = self.reply_in_progress(ctx, args_ctx)
+        positive_input_form, negative_input_form = DiffusionRunner.args_prompts_as_input_text(self.pipe, args_ctx)
+        
+        in_progress_status = self.reply_in_progress(ctx, args_ctx, positive_input_form, negative_input_form)
 
         diffusion_result: DiffusionRunner.Result = DiffusionRunner.run_diffusion_and_upload(self.pipe, ctx, args_ctx)
         reply_message = "\ntime: " + diffusion_result['time_took']
 
         logging.info(f'building reply text')
 
-        def detect_args_and_print(args_name):
-            if args_ctx.proc_kwargs is not None and args_name in args_ctx.proc_kwargs:
-                return '\n' + f'{args_name}: {args_ctx.proc_kwargs[args_name]}'
-            else:
-                return ''
-
-        reply_message += detect_args_and_print('num_inference_steps')
-        reply_message += detect_args_and_print('guidance_scale')
-
-        if diffusion_result["has_any_nsfw"]:
-            reply_message += '\n\n' + 'nsfw content detected, some of result will be a empty image'
-
-        reply_message += '\n\n' + f'prompt: \n{args_ctx.prompts["positive"]}'
-
-        if args_ctx.prompts['negative'] is not None:
-            reply_message += '\n\n' + f'negative prompt (without default): \n{args_ctx.prompts["negative"]}'
-
-        if len(reply_message) >= 450:
-            reply_message = reply_message[0:400] + '...'
-
-        media_ids = [image_posted['id'] for image_posted in diffusion_result["images_list_posted"]]
-        if diffusion_result["has_any_nsfw"] and ctx.bot_ctx.no_image_on_any_nsfw:
-            media_ids = None
-
-        spoiler_text = '[done] ' + args_ctx.prompts['positive'][0:20] + '...'
+        reply_message, spoiler_text, media_ids = DiffusionRunner.make_reply_message_contents(
+            ctx,
+            args_ctx,
+            diffusion_result,
+            detecting_args=['num_inference_steps', 'guidance_scale'],
+            positive_input_form=positive_input_form,
+            negative_input_form=negative_input_form
+        )
 
         reply_target_status = ctx.status if ctx.bot_ctx.delete_processing_message else in_progress_status
+
         ctx.mastodon.status_reply(reply_target_status, reply_message,
                                   media_ids=media_ids,
                                   visibility=ctx.reply_visibility,
@@ -93,8 +79,8 @@ class DiffuseMeHandler(BotRequestHandler):
 
         return True
 
-    def reply_in_progress(self, ctx: BotRequestContext, args_ctx: ProcArgsContext):
-        processing_body = DiffusionRunner.make_processing_body(self.pipe, args_ctx)
+    def reply_in_progress(self, ctx: BotRequestContext, args_ctx: ProcArgsContext, positive_input_form: str, negative_input_form: Optional[str]):
+        processing_body = DiffusionRunner.make_processing_body(args_ctx, positive_input_form, negative_input_form)
         in_progress_status = ctx.reply_to(status=ctx.status,
                                           body=processing_body if len(processing_body) > 0 else 'processing...',
                                           spoiler_text='processing...' if len(processing_body) > 0 else None,

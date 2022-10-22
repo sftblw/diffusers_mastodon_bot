@@ -18,6 +18,8 @@ class DiffuseGameStatus:
                  questioner_acct: str,
                  positive_prompt: Optional[str],
                  negative_prompt: Optional[str],
+                 positive_input_form: str,
+                 negative_input_form: Optional[str],
                  initial_chance = 5
                  ):
         self.tokenizer = tokenizer
@@ -32,6 +34,8 @@ class DiffuseGameStatus:
 
         self.gold_positive_prompt: Optional[str] = positive_prompt
         self.gold_negative_prompt: Optional[str] = negative_prompt
+        self.gold_positive_input_form = positive_input_form
+        self.gold_negative_input_form = negative_input_form
 
         self.initial_chance = initial_chance
 

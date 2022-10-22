@@ -79,23 +79,35 @@ class DiffusionRunner:
         return embed
 
     @staticmethod
-    def make_processing_body(
-            pipe: diffusers.pipelines.StableDiffusionPipeline,
-            args_ctx: ProcArgsContext
-    ) -> str:
-        # start message
-        processing_body = ''
-
+    def args_prompts_as_input_text(
+        pipe: Any,
+        args_ctx: ProcArgsContext
+    ) -> Tuple[str, Optional[str]]:
         # noinspection PyUnresolvedReferences
         tokenizer: transformers.CLIPTokenizer = pipe.tokenizer  # type: ignore
 
-        positive_input_form = DiffusionRunner.prompt_as_input_text(args_ctx.prompts['positive'], tokenizer)
+        positive_input_form = DiffusionRunner.prompt_as_input_text(args_ctx.prompts['positive'], pipe.tokenizer)
+        negative_input_form = None
+
+        if args_ctx.prompts['negative'] is not None and len(args_ctx.prompts['negative']) > 0:
+            negative_input_form = DiffusionRunner.prompt_as_input_text(args_ctx.prompts['negative'], tokenizer)
+
+        return positive_input_form, negative_input_form
+
+
+    @staticmethod
+    def make_processing_body(
+        args_ctx: ProcArgsContext,
+        positive_input_form: str,
+        negative_input_form: Optional[str]
+    ) -> str:
+        # start message
+        processing_body = ''
 
         if positive_input_form != args_ctx.prompts["positive"]:
             processing_body += f'\n\npositive prompt:\n{positive_input_form}'
 
         if args_ctx.prompts['negative'] is not None and len(args_ctx.prompts['negative']) > 0:
-            negative_input_form = DiffusionRunner.prompt_as_input_text(args_ctx.prompts['negative'], tokenizer)
             if negative_input_form != args_ctx.prompts["negative"]:
                 processing_body += f'\n\nnegative prompt:\n{negative_input_form}'
 
@@ -389,3 +401,42 @@ class DiffusionRunner:
             grid_image = image_grid(image_group, max_x, max_y)
             pil_image_grids.append(grid_image)
         return pil_image_grids
+
+    @staticmethod
+    def make_reply_message_contents(
+        ctx: BotRequestContext,
+        args_ctx: ProcArgsContext,
+        diffusion_result: Any,  # DiffusionRunner.Result
+        detecting_args: List[str],
+        positive_input_form: str,
+        negative_input_form: Optional[str]
+    ):  
+        reply_message = "\ntime: " + diffusion_result['time_took']
+            
+        def detect_args_and_print(args_name):
+            if args_ctx.proc_kwargs is not None and args_name in args_ctx.proc_kwargs:
+                return '\n' + f'{args_name}: {args_ctx.proc_kwargs[args_name]}'
+            else:
+                return ''
+
+        for key in detecting_args:
+            reply_message += detect_args_and_print(key)
+
+        if diffusion_result["has_any_nsfw"]:
+            reply_message += '\n\n' + 'nsfw content detected, some of result will be a empty image'
+
+        reply_message += '\n\n' + f'prompt: \n{positive_input_form}'
+
+        if negative_input_form is not None:
+            reply_message += '\n\n' + f'negative prompt (without default): \n{negative_input_form}'
+
+        if len(reply_message) >= 450:
+            reply_message = reply_message[0:400] + '...'
+
+        media_ids = [image_posted['id'] for image_posted in diffusion_result["images_list_posted"]]
+        if diffusion_result["has_any_nsfw"] and ctx.bot_ctx.no_image_on_any_nsfw:
+            media_ids = None
+
+        spoiler_text = '[done] ' + args_ctx.prompts['positive'][0:20] + '...'
+
+        return reply_message, spoiler_text, media_ids
