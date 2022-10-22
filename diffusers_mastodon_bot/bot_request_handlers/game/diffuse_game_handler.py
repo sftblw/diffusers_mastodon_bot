@@ -126,7 +126,7 @@ class DiffuseGameHandler(BotRequestHandler):
         if len(this_game.submissions) == 0:
             message = self.messages['game_no_player'] + '\n\n' + answer_info
             any_ctx.reply_to(this_game.status, message[0:480],
-                             visibility="unlisted", spoiler_text=self.messages['game_no_player_cw'], untag=True)
+                             visibility=any_ctx.bot_ctx.default_visibility, spoiler_text=self.messages['game_no_player_cw'], untag=True)
             return
 
         scores: List[DiffuseGameSubmission] = \
@@ -157,12 +157,12 @@ class DiffuseGameHandler(BotRequestHandler):
             )
 
         response_body = response_body.strip()
-        result_status = any_ctx.mastodon.status_post(response_body[0:480], visibility="unlisted", in_reply_to_id=this_game.status['id'])
+        result_status = any_ctx.mastodon.status_post(response_body[0:480], visibility=any_ctx.bot_ctx.default_visibility, in_reply_to_id=this_game.status['id'])
 
         any_ctx.mastodon.status_post(
             answer_info[0:480],
             in_reply_to_id=result_status['id'],
-            visibility="unlisted",
+            visibility=any_ctx.bot_ctx.default_visibility,
             spoiler_text=self.messages['answer_submission_was_by_cw'],
             )
 
@@ -186,7 +186,7 @@ class DiffuseGameHandler(BotRequestHandler):
 
         in_progress_public_status = ctx.mastodon.status_post(
             self.messages['new_game_generation_in_progress'],
-            visibility="unlisted"
+            visibility=ctx.bot_ctx.default_visibility
         )
 
         diffusion_result: DiffusionRunner.Result = \
@@ -199,7 +199,7 @@ class DiffuseGameHandler(BotRequestHandler):
         current_game_status: Dict[str, Any] = ctx.mastodon.status_post(
             self.messages['new_game_start_announce'],
             media_ids=media_ids,
-            visibility='unlisted',
+            visibility=ctx.bot_ctx.default_visibility,
             sensitive=True,
             in_reply_to_id=in_progress_public_status['id']
         )

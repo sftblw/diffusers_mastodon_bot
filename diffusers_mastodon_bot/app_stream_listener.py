@@ -26,8 +26,10 @@ class AppStreamListener(mastodon.StreamListener):
     def __init__(self, mastodon_client, diffusers_pipeline: diffusers.pipelines.StableDiffusionPipeline,
                  mention_to_url: str,
                  req_handlers: List[BotRequestHandler] = [],
-                 default_visibility='unlisted', output_save_path='./diffused_results',
-                 toot_listen_start: Union[str, None] = None, toot_listen_end: Union[str, None] = None,
+                 default_visibility='unlisted',
+                 output_save_path='./diffused_results',
+                 toot_listen_start: Union[str, None] = None,
+                 toot_listen_end: Union[str, None] = None,
                  toot_listen_start_cw: Union[str, None] = None,
                  delete_processing_message=False,
                  image_count=1,
@@ -101,6 +103,7 @@ class AppStreamListener(mastodon.StreamListener):
             image_tile_xy=self.image_tile_xy,
             image_tile_auto_expand=self.image_tile_auto_expand,
             image_max_attachment_count=self.image_max_attachment_count,
+            default_visibility=default_visibility,
             device_name=self.device
         )
 
