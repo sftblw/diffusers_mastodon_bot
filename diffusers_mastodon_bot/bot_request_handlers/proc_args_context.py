@@ -1,5 +1,6 @@
 from typing import *
 
+from dataclasses import dataclass
 
 class Prompts(TypedDict):
     positive: str
@@ -7,12 +8,11 @@ class Prompts(TypedDict):
     negative_with_default: Optional[str]
 
 
+# https://docs.python.org/3.7/library/dataclasses.html
+@dataclass
 class ProcArgsContext:
-    def __init__(self,
-                 prompts: Prompts,
-                 proc_kwargs: Dict[str, Any],
-                 target_image_count: int,
-                 ):
-        self.prompts = prompts
-        self.proc_kwargs = proc_kwargs
-        self.target_image_count = target_image_count
+    prompts: Prompts
+    proc_kwargs: Dict[str, Any]
+    target_image_count: int
+
+    

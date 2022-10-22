@@ -5,6 +5,7 @@ condaenv
 condaenv_*
 
 diffused_results
+diffused_results*
 
 config/**/*
 !config/.gitkeep

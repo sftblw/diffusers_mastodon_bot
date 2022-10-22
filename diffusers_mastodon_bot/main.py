@@ -8,37 +8,44 @@ from mastodon import Mastodon
 
 import torch
 
-from diffusers import StableDiffusionPipeline
+from diffusers.pipelines.stable_diffusion import StableDiffusionPipeline, StableDiffusionImg2ImgPipeline
 
 from diffusers_mastodon_bot.app_stream_listener import AppStreamListener
 from diffusers_mastodon_bot.bot_request_handlers.bot_request_handler import BotRequestHandler
 from diffusers_mastodon_bot.bot_request_handlers.game.diffuse_game_handler import DiffuseGameHandler
 from diffusers_mastodon_bot.bot_request_handlers.diffuse_me_handler import DiffuseMeHandler
+from diffusers_mastodon_bot.bot_request_handlers.diffuse_it_handler import DiffuseItHandler
 from pipelines.stable_diffusion.safety_checker_dummy import StableDiffusionSafetyCheckerDummy
 
 
 def create_diffusers_pipeline(device_name='cuda'):
-    pipe = StableDiffusionPipeline.from_pretrained(
+    pipe: StableDiffusionPipeline = StableDiffusionPipeline.from_pretrained(
         # "CompVis/stable-diffusion-v1-4",
-        # "./ipynb/sd_concept_20221005_19",
         'hakurei/waifu-diffusion',
         revision='fp16',
         torch_dtype=torch.float16,
         use_auth_token=True,
-        safety_checker=StableDiffusionSafetyCheckerDummy()
-    )
+        safety_checker=StableDiffusionSafetyCheckerDummy(),
+    )  # type: ignore
 
     pipe = pipe.to(device_name)
     pipe.enable_attention_slicing()
     return pipe
 
-
-def create_diffusers_pipeline_cpu(device_name='cpu'):
-    pipe = StableDiffusionPipeline.from_pretrained("CompVis/stable-diffusion-v1-4", use_auth_token=True)
-
-    pipe = pipe.to(device_name)
-    return pipe
-
+def pipe_as_img2img(pipe):
+    pipe_img2img = StableDiffusionImg2ImgPipeline(
+        text_encoder=pipe.text_encoder,
+        tokenizer=pipe.tokenizer,
+        feature_extractor=pipe.feature_extractor,
+        vae=pipe.vae,
+        unet=pipe.unet,
+        scheduler=pipe.scheduler,
+        safety_checker=pipe.safety_checker,
+    )
+    
+    pipe_img2img = pipe_img2img.to(pipe.device)
+    pipe_img2img.enable_attention_slicing()
+    return pipe_img2img
 
 def read_text_file(filename: str) -> Union[str, None]:
     path = Path(filename)
@@ -107,22 +114,26 @@ def main():
     logging.info('loading model')
     device_name = 'cuda'
     pipe = create_diffusers_pipeline(device_name)
-    # pipe = create_diffusers_pipeline_cpu(device_name)
+    pipe_img2img = pipe_as_img2img(pipe)
 
     logging.info('creating handlers')
 
     req_handlers: List[BotRequestHandler] = [
         DiffuseMeHandler(
             pipe=pipe,
-            tag_name="diffuse_me"
+            tag_name="diffuse_me",
+        ),
+        DiffuseItHandler(
+            pipe=pipe_img2img,
+            tag_name='diffuse_it'
         ),
         DiffuseGameHandler(
             pipe=pipe,
             tag_name='diffuse_game',
-            messages=diffusion_game_messages,
+            messages=diffusion_game_messages, # type: ignore
             response_duration_sec=60 * 30
         )
-    ]
+    ] # type: ignore
 
     logging.info('creating listener')
     listener = AppStreamListener(mastodon, pipe,
