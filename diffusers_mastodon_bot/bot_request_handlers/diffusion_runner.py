@@ -411,9 +411,9 @@ class DiffusionRunner:
         args_ctx: ProcArgsContext,
         diffusion_result: Any,  # DiffusionRunner.Result
         detecting_args: List[str],
-        args_custom_text: Optional[str],
-        positive_input_form: str,
-        negative_input_form: Optional[str]
+        args_custom_text: Optional[str] = None,
+        positive_input_form: str = '',
+        negative_input_form: Optional[str] = None
     ):  
         reply_message = "\ntime: " + diffusion_result['time_took']
             
