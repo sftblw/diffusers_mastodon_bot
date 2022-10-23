@@ -138,7 +138,7 @@ class DiffuseItHandler(BotRequestHandler):
                     (int(target_width), int(target_height * (image.height / image.width))),
                     resample=PIL.Image.Resampling.LANCZOS
                 )
-                
+
         # fit in the image
         image.thumbnail(
             size = (target_width, target_height),
@@ -154,8 +154,8 @@ class DiffuseItHandler(BotRequestHandler):
             if strength is None:
                 strength = 0.8  # pipeline default
             if strength > 0:
-                num_inference_steps_original = args_ctx.proc_kwargs['num_inference_steps']
-                args_ctx.proc_kwargs['num_inference_steps'] = num_inference_steps_original / strength
+                num_inference_steps_original = int(args_ctx.proc_kwargs['num_inference_steps'])
+                args_ctx.proc_kwargs['num_inference_steps'] = int(num_inference_steps_original / strength)
 
         diffusion_result: DiffusionRunner.Result = DiffusionRunner.run_img2img_and_upload(
             self.pipe,

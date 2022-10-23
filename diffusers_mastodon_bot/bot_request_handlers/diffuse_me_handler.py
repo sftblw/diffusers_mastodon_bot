@@ -49,6 +49,10 @@ class DiffuseMeHandler(BotRequestHandler):
         
         in_progress_status = self.reply_in_progress(ctx, args_ctx, positive_input_form, negative_input_form)
 
+        if 'num_inference_steps' in args_ctx.proc_kwargs \
+            and args_ctx.proc_kwargs['num_inference_steps'] is not None:
+            args_ctx.proc_kwargs['num_inference_steps'] = int(args_ctx.proc_kwargs['num_inference_steps'])
+
         diffusion_result: DiffusionRunner.Result = DiffusionRunner.run_diffusion_and_upload(self.pipe, ctx, args_ctx)
         reply_message = "\ntime: " + diffusion_result['time_took']
 
