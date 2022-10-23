@@ -125,6 +125,17 @@ class DiffuseItHandler(BotRequestHandler):
         )
         image = convert_image(image)
 
+        # increase steps by strength, to run like default
+        num_inference_steps_original = None
+        if 'num_inference_steps' in args_ctx.proc_kwargs \
+            and args_ctx.proc_kwargs['num_inference_steps'] is not None:
+            strength = args_ctx.proc_kwargs['strength'] if 'strength' in args_ctx.proc_kwargs else None
+            if strength is None:
+                strength = 0.8  # pipeline default
+            if strength > 0:
+                num_inference_steps_original = args_ctx.proc_kwargs['num_inference_steps']
+                args_ctx.proc_kwargs['num_inference_steps'] = num_inference_steps_original / strength
+
         diffusion_result: DiffusionRunner.Result = DiffusionRunner.run_img2img_and_upload(
             self.pipe,
             ctx,
@@ -139,7 +150,10 @@ class DiffuseItHandler(BotRequestHandler):
             ctx,
             args_ctx,
             diffusion_result,
-            detecting_args=['num_inference_steps', 'guidance_scale', 'strength'],
+            detecting_args=['guidance_scale', 'strength'],
+            args_custom_text=f'args.num_inference_steps (actual): {args_ctx.proc_kwargs["num_inference_steps"]} (input: {num_inference_steps_original})' \
+                if num_inference_steps_original is not None \
+                else None,
             positive_input_form=positive_input_form,
             negative_input_form=negative_input_form
         )

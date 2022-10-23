@@ -249,6 +249,9 @@ class DiffusionRunner:
             "strength": key_or_none('strength'),
         }
 
+        if manual_proc_kwargs['strength'] is None:
+            del manual_proc_kwargs['strength']
+
         while left_images_count > 0:
             cur_process_count = min(ctx.bot_ctx.max_batch_process, left_images_count)
             logging.info(
@@ -408,6 +411,7 @@ class DiffusionRunner:
         args_ctx: ProcArgsContext,
         diffusion_result: Any,  # DiffusionRunner.Result
         detecting_args: List[str],
+        args_custom_text: Optional[str],
         positive_input_form: str,
         negative_input_form: Optional[str]
     ):  
@@ -421,6 +425,9 @@ class DiffusionRunner:
 
         for key in detecting_args:
             reply_message += detect_args_and_print(key)
+
+        if args_custom_text is not None:
+            reply_message += '\n' + args_custom_text
 
         if diffusion_result["has_any_nsfw"]:
             reply_message += '\n\n' + 'nsfw content detected, some of result will be a empty image'
