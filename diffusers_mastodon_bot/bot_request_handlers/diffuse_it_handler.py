@@ -111,14 +111,35 @@ class DiffuseItHandler(BotRequestHandler):
         target_width = args_ctx.proc_kwargs['width']
         target_height =  args_ctx.proc_kwargs['height']
         if image.width == image.height and target_width != target_height:
+            # make it as square
             target_width = min(target_width, target_height)
             target_height = min(target_width, target_height)
         elif ( image.width > image.height and target_width < target_height ) \
             or ( image.width < image.height and target_width > target_height ):
+            # fit orientation
             temp = target_height
             target_height = target_width
             target_width = temp
 
+        # upscale too small image, to fit in
+        if image.width < target_width and image.height < target_height:
+            width_ratio = target_width / image.width
+            height_ratio = target_height / image.height
+
+            if width_ratio > height_ratio:
+                # based on height
+                image = image.resize(
+                    (int(target_height * (image.width / image.height)), int(target_height)),
+                    resample=PIL.Image.Resampling.LANCZOS
+                )
+            elif width_ratio <= height_ratio:
+                # based on width:
+                image = image.resize(
+                    (int(target_width), int(target_height * (image.height / image.width))),
+                    resample=PIL.Image.Resampling.LANCZOS
+                )
+                
+        # fit in the image
         image.thumbnail(
             size = (target_width, target_height),
             resample=PIL.Image.Resampling.LANCZOS  # type: ignore
