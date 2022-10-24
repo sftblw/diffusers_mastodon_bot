@@ -129,13 +129,13 @@ class DiffuseItHandler(BotRequestHandler):
             if width_ratio > height_ratio:
                 # based on height
                 image = image.resize(
-                    (int(target_width * (image.width / image.height)), int(target_height)),
+                    (int(target_height * (image.width / image.height)), int(target_height)),
                     resample=PIL.Image.Resampling.LANCZOS
                 )
             elif width_ratio <= height_ratio:
                 # based on width:
                 image = image.resize(
-                    (int(target_width), int(target_height * (image.height / image.width))),
+                    (int(target_width), int(target_width * (image.height / image.width))),
                     resample=PIL.Image.Resampling.LANCZOS
                 )
 
