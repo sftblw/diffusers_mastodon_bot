@@ -131,7 +131,7 @@ def main():
             pipe=pipe,
             tag_name='diffuse_game',
             messages=diffusion_game_messages, # type: ignore
-            response_duration_sec=60 * 1
+            response_duration_sec=60 * 30
         )
     ] # type: ignore
 
