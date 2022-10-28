@@ -1,6 +1,6 @@
 diffusers < 0.7, >= 0.6
 transformers
-mastodon.py == 1.5.1
+Mastodonplus.py
 ftfy
 spacy
 pillow
