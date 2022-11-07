@@ -15,7 +15,6 @@ from diffusers_mastodon_bot.bot_request_handlers.bot_request_handler import BotR
 from diffusers_mastodon_bot.bot_request_handlers.game.diffuse_game_handler import DiffuseGameHandler
 from diffusers_mastodon_bot.bot_request_handlers.diffuse_me_handler import DiffuseMeHandler
 from diffusers_mastodon_bot.bot_request_handlers.diffuse_it_handler import DiffuseItHandler
-from pipelines.stable_diffusion.safety_checker_dummy import StableDiffusionSafetyCheckerDummy
 
 
 def create_diffusers_pipeline(device_name='cuda'):
@@ -25,7 +24,7 @@ def create_diffusers_pipeline(device_name='cuda'):
         revision='fp16',
         torch_dtype=torch.float16,
         use_auth_token=True,
-        safety_checker=StableDiffusionSafetyCheckerDummy(),
+        safety_checker=None,
     )  # type: ignore
 
     pipe = pipe.to(device_name)
@@ -42,7 +41,7 @@ def pipe_as_img2img(pipe):
         scheduler=pipe.scheduler,
         safety_checker=pipe.safety_checker,
     )
-    
+
     pipe_img2img = pipe_img2img.to(pipe.device)
     pipe_img2img.enable_attention_slicing()
     return pipe_img2img
