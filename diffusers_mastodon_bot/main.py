@@ -18,6 +18,8 @@ from diffusers_mastodon_bot.bot_request_handlers.diffuse_it_handler import Diffu
 from diffusers_mastodon_bot.community_pipeline.lpw_stable_diffusion \
     import StableDiffusionLongPromptWeightingPipeline as StableDiffusionLpw
 
+from diffusers import EulerAncestralDiscreteScheduler, EulerDiscreteScheduler
+
 
 def create_diffusers_pipeline(device_name='cuda', pipe_kwargs: Optional[Dict[str, Any]] = None):
     if pipe_kwargs is None:
@@ -32,6 +34,9 @@ def create_diffusers_pipeline(device_name='cuda', pipe_kwargs: Optional[Dict[str
         if key not in pipe_kwargs:
             pipe_kwargs[key] = value
 
+    model_name_or_path = pipe_kwargs['pretrained_model_name_or_path']
+    del pipe_kwargs['pretrained_model_name_or_path']
+
     torch_dtype = torch.float32
     if 'torch_dtype' in pipe_kwargs:
         dtype_param = pipe_kwargs['torch_dtype']
@@ -40,10 +45,20 @@ def create_diffusers_pipeline(device_name='cuda', pipe_kwargs: Optional[Dict[str
         if dtype_param == 'torch.float16':
             torch_dtype = torch.float16
 
+    if 'scheduler' in pipe_kwargs:
+        scheduler_param = pipe_kwargs['scheduler']
+        del pipe_kwargs['scheduler']
+
+        if scheduler_param == 'euler':
+            pipe_kwargs['scheduler'] = EulerDiscreteScheduler.from_config(model_name_or_path, subfolder="scheduler")
+        elif scheduler_param == 'euler_a':
+            pipe_kwargs['scheduler'] = EulerAncestralDiscreteScheduler.from_config(model_name_or_path, subfolder="scheduler")
+
     pipe: StableDiffusionLpw = StableDiffusionLpw.from_pretrained(
-        **pipe_kwargs,
+        model_name_or_path,
         torch_dtype=torch_dtype,
         safety_checker=None,
+        **pipe_kwargs
     )
 
     pipe = pipe.to(device_name)
