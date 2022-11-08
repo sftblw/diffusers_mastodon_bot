@@ -48,7 +48,7 @@ class DiffuseMeHandler(BotRequestHandler):
     def respond_to(self, ctx: BotRequestContext, args_ctx: ProcArgsContext) -> bool:
         # start
         positive_input_form, negative_input_form = DiffusionRunner.args_prompts_as_input_text(self.pipe, args_ctx)
-        
+
         in_progress_status = self.reply_in_progress(ctx, args_ctx, positive_input_form, negative_input_form)
 
         if 'num_inference_steps' in args_ctx.proc_kwargs \
@@ -56,7 +56,6 @@ class DiffuseMeHandler(BotRequestHandler):
             args_ctx.proc_kwargs['num_inference_steps'] = int(args_ctx.proc_kwargs['num_inference_steps'])
 
         diffusion_result: DiffusionRunner.Result = DiffusionRunner.run_diffusion_and_upload(self.pipe, ctx, args_ctx)
-        reply_message = "\ntime: " + diffusion_result['time_took']
 
         logging.info(f'building reply text')
 
@@ -71,12 +70,15 @@ class DiffuseMeHandler(BotRequestHandler):
 
         reply_target_status = ctx.status if ctx.bot_ctx.delete_processing_message else in_progress_status
 
-        ctx.mastodon.status_reply(reply_target_status, reply_message,
-                                  media_ids=media_ids,
-                                  visibility=ctx.reply_visibility,
-                                  spoiler_text=spoiler_text,
-                                  sensitive=True
-                                  )
+        ctx.reply_to(
+            reply_target_status,
+            reply_message,
+            media_ids=media_ids,
+            visibility=ctx.reply_visibility,
+            spoiler_text=spoiler_text,
+            sensitive=True,
+            tag_behind=True
+        )
 
         if ctx.bot_ctx.delete_processing_message:
             ctx.mastodon.status_delete(in_progress_status)

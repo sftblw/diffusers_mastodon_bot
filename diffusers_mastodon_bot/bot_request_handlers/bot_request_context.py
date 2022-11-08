@@ -37,11 +37,37 @@ class BotRequestContext:
         account = self.status['account']
         return account['url'] != self.bot_ctx.bot_acct_url
 
-    def reply_to(self, status: Dict[str, Any], body: str, **kwargs):
+    def reply_to(self, status: Dict[str, Any], body: str, tag_behind: bool = False, **kwargs):
         if 'visibility' not in kwargs.keys():
             kwargs['visibility'] = self.reply_visibility
 
-        return self.mastodon.status_reply(status, body, **kwargs)
+        if tag_behind:
+            def unique_list(obj_list):
+                unique_store = set()
+                obj_unique_list = []
+                for m in obj_list:
+                    if m in unique_store:
+                        continue
+                    obj_unique_list.append(m)
+                return obj_unique_list
+
+            # different type but it works
+            user_objects = [status['account']] + status['mentions']
+
+            mention_targets = [
+                '@' + user_dict['acct']
+                for user_dict in user_objects
+                if user_dict['url'] != self.bot_ctx.bot_acct_url
+            ]
+
+            mention_targets = unique_list(mention_targets)
+
+            mention_text = ' '.join(mention_targets)
+            body = body[: max(500 - len(mention_text) - 1, 0)] + '\n' + mention_text
+
+            return self.mastodon.status_post(body, in_reply_to_id=status['id'], **kwargs)
+        else:
+            return self.mastodon.status_reply(status, body, **kwargs)
 
     def set_payload(self, klass: typing.Type, key: str, value: Any):
         if klass not in self.payload.keys():

@@ -182,12 +182,15 @@ class DiffuseItHandler(BotRequestHandler):
 
         reply_target_status = ctx.status if ctx.bot_ctx.delete_processing_message else in_progress_status
 
-        ctx.mastodon.status_reply(reply_target_status, reply_message,
-                                  media_ids=media_ids,
-                                  visibility=ctx.reply_visibility,
-                                  spoiler_text=spoiler_text,
-                                  sensitive=True
-                                  )
+        ctx.reply_to(
+            reply_target_status,
+            reply_message,
+            media_ids=media_ids,
+            visibility=ctx.reply_visibility,
+            spoiler_text=spoiler_text,
+            sensitive=True,
+            tag_behind=True
+        )
 
         if ctx.bot_ctx.delete_processing_message:
             ctx.mastodon.status_delete(in_progress_status)
