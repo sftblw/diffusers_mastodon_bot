@@ -71,7 +71,7 @@ class DiffuseMeHandler(BotRequestHandler):
 
         reply_target_status = ctx.status if ctx.bot_ctx.delete_processing_message else in_progress_status
 
-        ctx.reply_to(
+        replied_status = ctx.reply_to(
             reply_target_status,
             reply_message,
             media_ids=media_ids,
@@ -80,6 +80,9 @@ class DiffuseMeHandler(BotRequestHandler):
             sensitive=True,
             tag_behind=ctx.bot_ctx.tag_behind_on_image_post
         )
+
+        if ctx.bot_ctx.tag_behind_on_image_post:
+            ctx.mastodon.status_reblog(replied_status['id'])
 
         if ctx.bot_ctx.delete_processing_message:
             ctx.mastodon.status_delete(in_progress_status)
