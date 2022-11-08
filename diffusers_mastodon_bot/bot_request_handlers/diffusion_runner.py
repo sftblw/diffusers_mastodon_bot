@@ -80,23 +80,6 @@ class DiffusionRunner:
         return embed
 
     @staticmethod
-    def args_prompts_as_input_text(
-        pipe: Any,
-        args_ctx: ProcArgsContext
-    ) -> Tuple[str, Optional[str]]:
-        # noinspection PyUnresolvedReferences
-        tokenizer: transformers.CLIPTokenizer = pipe.tokenizer  # type: ignore
-
-        positive_input_form = DiffusionRunner.prompt_as_input_text(args_ctx.prompts['positive'], pipe.tokenizer)
-        negative_input_form = None
-
-        if args_ctx.prompts['negative'] is not None and len(args_ctx.prompts['negative']) > 0:
-            negative_input_form = DiffusionRunner.prompt_as_input_text(args_ctx.prompts['negative'], tokenizer)
-
-        return positive_input_form, negative_input_form
-
-
-    @staticmethod
     def make_processing_body(
         args_ctx: ProcArgsContext,
         positive_input_form: str,

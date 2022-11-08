@@ -47,9 +47,10 @@ class DiffuseMeHandler(BotRequestHandler):
 
     def respond_to(self, ctx: BotRequestContext, args_ctx: ProcArgsContext) -> bool:
         # start
-        positive_input_form, negative_input_form = DiffusionRunner.args_prompts_as_input_text(self.pipe, args_ctx)
+        positive_input_form = args_ctx.prompts['positive']
+        negative_input_form = args_ctx.prompts['negative']
 
-        in_progress_status = self.reply_in_progress(ctx, args_ctx, positive_input_form, negative_input_form)
+        in_progress_status = ctx.reply_to(ctx.status, 'processing...')
 
         if 'num_inference_steps' in args_ctx.proc_kwargs \
             and args_ctx.proc_kwargs['num_inference_steps'] is not None:

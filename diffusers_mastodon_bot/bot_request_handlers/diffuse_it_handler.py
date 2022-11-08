@@ -79,9 +79,10 @@ class DiffuseItHandler(BotRequestHandler):
 
     def respond_to(self, ctx: BotRequestContext, args_ctx: ProcArgsContext) -> bool:
         # start
-        positive_input_form, negative_input_form = DiffusionRunner.args_prompts_as_input_text(self.pipe, args_ctx)
-        
-        in_progress_status = self.reply_in_progress(ctx, args_ctx, positive_input_form, negative_input_form)
+        positive_input_form = args_ctx.prompts['positive']
+        negative_input_form = args_ctx.prompts['negative']
+
+        in_progress_status = ctx.reply_to(ctx.status, 'processing...')
 
         if 'media_attachments' not in ctx.status.keys() or len(ctx.status['media_attachments']) == 0:
             ctx.reply_to(ctx.status, 'no attachment found')

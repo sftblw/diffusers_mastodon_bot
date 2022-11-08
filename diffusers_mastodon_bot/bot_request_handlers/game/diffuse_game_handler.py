@@ -180,9 +180,10 @@ class DiffuseGameHandler(BotRequestHandler):
             return True  # it is correctly processed case.
 
         # start
-        positive_input_form, negative_input_form = DiffusionRunner.args_prompts_as_input_text(self.pipe, args_ctx)
-        
-        in_progress_status = self.reply_in_progress(ctx, args_ctx, positive_input_form, negative_input_form)
+        positive_input_form = args_ctx.prompts['positive']
+        negative_input_form = args_ctx.prompts['negative']
+
+        in_progress_status = ctx.reply_to(ctx.status, 'processing...', visibility="direct")
 
         in_progress_public_status = ctx.mastodon.status_post(
             self.messages['new_game_generation_in_progress'],
@@ -282,11 +283,3 @@ class DiffuseGameHandler(BotRequestHandler):
             )
             self.current_game_timer.cancel()
             self.close_game(any_ctx=ctx, early_end_status=ctx.status)
-
-    def reply_in_progress(self, ctx: BotRequestContext, args_ctx: ProcArgsContext, positive_input_form: str, negative_input_form: Optional[str]):
-        processing_body = DiffusionRunner.make_processing_body(args_ctx, positive_input_form, negative_input_form)
-        in_progress_status = ctx.reply_to(status=ctx.status,
-                                          body=processing_body if len(processing_body) > 0 else 'processing...',
-                                          spoiler_text='processing...' if len(processing_body) > 0 else None,
-                                          visibility="direct")
-        return in_progress_status
