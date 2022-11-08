@@ -7,5 +7,7 @@
   "max_batch_process": 1,
   "delete_processing_message": false,
   "toot_on_start_end": true,
+  "save_image": true,
+  "tag_behind_on_image_post": false,
   "default_negative_prompt": "nsfw, lowres, bad anatomy, bad hands, mutated hands and fingers, deformed, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry"
 }

@@ -127,7 +127,9 @@ class DiffusionRunner:
 
             result["time_took"] = f'{time_took}s'
 
-        result["image_filenames"] = DiffusionRunner.save_images(ctx, args_ctx, filename_root, generated_images_raw_pil)
+        if ctx.bot_ctx.save_image:
+            save_result = DiffusionRunner.save_images(ctx, args_ctx, filename_root, generated_images_raw_pil)
+            result["image_filenames"] = save_result
 
         uploaded_images = DiffusionRunner.upload_images(ctx, generated_images_raw_pil)
         result["images_list_posted"] = uploaded_images
@@ -206,13 +208,14 @@ class DiffusionRunner:
         )
 
         # save init image too
-        DiffusionRunner.save_images(
-            ctx,
-            args_ctx,
-            filename_root=filename_root + '_src',
-            generated_images_raw_pil=[init_image],
-            save_args=False
-        )
+        if ctx.bot_ctx.save_image:
+            DiffusionRunner.save_images(
+                ctx,
+                args_ctx,
+                filename_root=filename_root + '_src',
+                generated_images_raw_pil=[init_image],
+                save_args=False
+            )
 
         return result
 

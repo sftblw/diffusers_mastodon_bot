@@ -78,7 +78,7 @@ class DiffuseMeHandler(BotRequestHandler):
             visibility=ctx.reply_visibility,
             spoiler_text=spoiler_text,
             sensitive=True,
-            tag_behind=True
+            tag_behind=ctx.bot_ctx.tag_behind_on_image_post
         )
 
         if ctx.bot_ctx.delete_processing_message:

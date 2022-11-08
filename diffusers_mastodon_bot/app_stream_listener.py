@@ -42,7 +42,10 @@ class AppStreamListener(mastodon.StreamListener):
                  toot_on_start_end=True,
                  no_image_on_any_nsfw=True,
                  default_negative_prompt: Optional[str] = None,
-                 proc_kwargs: Union[None, Dict[str, Any]] = None):
+                 save_image=True,
+                 tag_behind_on_image_post=False,
+                 proc_kwargs: Union[None, Dict[str, Any]] = None
+                 ):
         self.mastodon: Mastodon = mastodon_client
         self.mention_to_url = mention_to_url
         self.diffusers_pipeline: diffusers.pipelines.StableDiffusionPipeline = diffusers_pipeline
@@ -97,6 +100,8 @@ class AppStreamListener(mastodon.StreamListener):
         self.bot_ctx = BotContext(
             bot_acct_url=mention_to_url,
             output_save_path=self.output_save_path,
+            save_image=save_image,
+            tag_behind_on_image_post=tag_behind_on_image_post,
             max_batch_process=self.max_batch_process,
             delete_processing_message=self.delete_processing_message,
             no_image_on_any_nsfw=self.no_image_on_any_nsfw,
@@ -104,7 +109,7 @@ class AppStreamListener(mastodon.StreamListener):
             image_tile_auto_expand=self.image_tile_auto_expand,
             image_max_attachment_count=self.image_max_attachment_count,
             default_visibility=default_visibility,
-            device_name=self.device
+            device_name=self.device,
         )
 
         self.req_handlers = req_handlers

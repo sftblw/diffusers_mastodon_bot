@@ -5,6 +5,8 @@ class BotContext:
     def __init__(self,
                  bot_acct_url: str,
                  output_save_path: str,
+                 save_image: bool,
+                 tag_behind_on_image_post: bool,
                  max_batch_process: int,
                  delete_processing_message: bool,
                  no_image_on_any_nsfw: bool,
@@ -12,11 +14,13 @@ class BotContext:
                  image_tile_auto_expand: bool,
                  image_max_attachment_count: int,
                  default_visibility: str,
-                 device_name: str
+                 device_name: str,
                  ):
         self.bot_acct_url = bot_acct_url
         self.output_save_path = output_save_path
-        self.max_batch_process =  max_batch_process
+        self.save_image = save_image
+        self.tag_behind_on_image_post = tag_behind_on_image_post
+        self.max_batch_process = max_batch_process
         self.delete_processing_message = delete_processing_message
         self.no_image_on_any_nsfw = no_image_on_any_nsfw
         self.image_tile_xy = image_tile_xy
