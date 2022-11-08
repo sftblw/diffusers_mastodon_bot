@@ -10,8 +10,6 @@ from pathlib import Path
 import traceback
 from typing import *
 
-
-import diffusers.pipelines
 import torch
 import transformers
 import PIL
@@ -23,6 +21,9 @@ from .bot_request_context import BotRequestContext
 from .diffusion_runner import DiffusionRunner
 from .proc_args_context import ProcArgsContext
 from ..utils import image_grid
+
+from diffusers_mastodon_bot.community_pipeline.lpw_stable_diffusion \
+    import StableDiffusionLongPromptWeightingPipeline as StableDiffusionLpw
 
 
 import requests
@@ -54,7 +55,7 @@ def download_image(url) -> Optional[PIL.Image.Image]:
 
 class DiffuseItHandler(BotRequestHandler):
     def __init__(self,
-                 pipe: diffusers.pipelines.StableDiffusionImg2ImgPipeline,
+                 pipe: StableDiffusionLpw,
                  tag_name: str = 'diffuse_it',
                  allow_self_request_only: bool = False
                  ):

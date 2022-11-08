@@ -18,12 +18,14 @@ from .bot_request_handler import BotRequestHandler
 from .bot_request_context import BotRequestContext
 from .diffusion_runner import DiffusionRunner
 from .proc_args_context import ProcArgsContext
-from ..utils import image_grid
+
+from diffusers_mastodon_bot.community_pipeline.lpw_stable_diffusion \
+    import StableDiffusionLongPromptWeightingPipeline as StableDiffusionLpw
 
 
 class DiffuseMeHandler(BotRequestHandler):
     def __init__(self,
-                 pipe: diffusers.pipelines.StableDiffusionPipeline,
+                 pipe: StableDiffusionLpw,
                  tag_name: str = 'diffuse_me',
                  allow_self_request_only: bool = False
                  ):

@@ -1,0 +1,5 @@
+{
+    "pretrained_model_name_or_path": "hakurei/waifu-diffusion",
+    "revision": "fp16",
+    "torch_dtype": "torch.float16"
+}

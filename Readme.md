@@ -46,3 +46,7 @@ high contrast, trecen school suite, uma musume
 ## config examples
 
 see `config_example`. copy-paste it to `config` and modify from there.
+
+## misc
+
+This software contains source from `huggingface/diffusers`, which is under Apache License 2.

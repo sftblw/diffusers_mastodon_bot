@@ -15,36 +15,41 @@ from diffusers_mastodon_bot.bot_request_handlers.bot_request_handler import BotR
 from diffusers_mastodon_bot.bot_request_handlers.game.diffuse_game_handler import DiffuseGameHandler
 from diffusers_mastodon_bot.bot_request_handlers.diffuse_me_handler import DiffuseMeHandler
 from diffusers_mastodon_bot.bot_request_handlers.diffuse_it_handler import DiffuseItHandler
+from diffusers_mastodon_bot.community_pipeline.lpw_stable_diffusion \
+    import StableDiffusionLongPromptWeightingPipeline as StableDiffusionLpw
 
 
-def create_diffusers_pipeline(device_name='cuda'):
-    pipe: StableDiffusionPipeline = StableDiffusionPipeline.from_pretrained(
-        # "CompVis/stable-diffusion-v1-4",
-        'hakurei/waifu-diffusion',
-        revision='fp16',
-        torch_dtype=torch.float16,
-        use_auth_token=True,
+def create_diffusers_pipeline(device_name='cuda', pipe_kwargs: Optional[Dict[str, Any]] = None):
+    if pipe_kwargs is None:
+        pipe_kwargs = {}
+
+    kwargs_defaults = {
+        "pretrained_model_name_or_path": 'hakurei/waifu-diffusion',
+        'revision': 'fp16'
+    }
+
+    for key, value in kwargs_defaults.items():
+        if key not in pipe_kwargs:
+            pipe_kwargs[key] = value
+
+    torch_dtype = torch.float32
+    if 'torch_dtype' in pipe_kwargs:
+        dtype_param = pipe_kwargs['torch_dtype']
+        del pipe_kwargs['torch_dtype']
+
+        if dtype_param == 'torch.float16':
+            torch_dtype = torch.float16
+
+    pipe: StableDiffusionLpw = StableDiffusionLpw.from_pretrained(
+        **pipe_kwargs,
+        torch_dtype=torch_dtype,
         safety_checker=None,
-    )  # type: ignore
+    )
 
     pipe = pipe.to(device_name)
     pipe.enable_attention_slicing()
     return pipe
 
-def pipe_as_img2img(pipe):
-    pipe_img2img = StableDiffusionImg2ImgPipeline(
-        text_encoder=pipe.text_encoder,
-        tokenizer=pipe.tokenizer,
-        feature_extractor=pipe.feature_extractor,
-        vae=pipe.vae,
-        unet=pipe.unet,
-        scheduler=pipe.scheduler,
-        safety_checker=pipe.safety_checker,
-    )
-
-    pipe_img2img = pipe_img2img.to(pipe.device)
-    pipe_img2img.enable_attention_slicing()
-    return pipe_img2img
 
 def read_text_file(filename: str) -> Union[str, None]:
     path = Path(filename)
@@ -91,6 +96,7 @@ def main():
     toot_listen_end = read_text_file('./config/toot_listen_end.txt')
     toot_listen_start_cw = read_text_file('./config/toot_listen_start_cw.txt')
 
+    pipe_kwargs = load_json_dict('./config/pipe_kwargs.json')
     proc_kwargs = load_json_dict('./config/proc_kwargs.json')
     app_stream_listener_kwargs = load_json_dict('./config/app_stream_listener_kwargs.json')
     if app_stream_listener_kwargs is None:
@@ -112,8 +118,7 @@ def main():
 
     logging.info('loading model')
     device_name = 'cuda'
-    pipe = create_diffusers_pipeline(device_name)
-    pipe_img2img = pipe_as_img2img(pipe)
+    pipe = create_diffusers_pipeline(device_name, pipe_kwargs)
 
     logging.info('creating handlers')
 
@@ -123,16 +128,16 @@ def main():
             tag_name="diffuse_me",
         ),
         DiffuseItHandler(
-            pipe=pipe_img2img,
+            pipe=pipe,
             tag_name='diffuse_it'
         ),
         DiffuseGameHandler(
             pipe=pipe,
             tag_name='diffuse_game',
-            messages=diffusion_game_messages, # type: ignore
+            messages=diffusion_game_messages,  # type: ignore
             response_duration_sec=60 * 30
         )
-    ] # type: ignore
+    ]  # type: ignore
 
     logging.info('creating listener')
     listener = AppStreamListener(mastodon, pipe,
