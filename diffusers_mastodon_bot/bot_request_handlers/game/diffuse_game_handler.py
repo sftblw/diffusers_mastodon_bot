@@ -24,6 +24,7 @@ from diffusers_mastodon_bot.bot_request_handlers.game.diffuse_game_message impor
 from diffusers_mastodon_bot.bot_request_handlers.game.diffuse_game_status import DiffuseGameStatus
 from diffusers_mastodon_bot.bot_request_handlers.game.diffuse_game_submission import DiffuseGameSubmission
 from diffusers_mastodon_bot.bot_request_handlers.proc_args_context import ProcArgsContext
+from diffusers_mastodon_bot.community_pipeline.lpw_stable_diffusion import get_weighted_text_embeddings
 from diffusers_mastodon_bot.utils import image_grid
 
 import statistics
@@ -116,12 +117,12 @@ class DiffuseGameHandler(BotRequestHandler):
 
         answer_info = ''
         answer_info += self.messages['question_by'].replace('{account}', '@' + this_game.questioner_acct)
-        if this_game.gold_positive_input_form is not None:
+        if this_game.gold_positive_prompt is not None:
             answer_info += '\n\n' + self.messages['gold_positive_prompt'] \
-                .replace('{prompt}', this_game.gold_positive_input_form)
-        if this_game.gold_negative_input_form is not None:
+                .replace('{prompt}', this_game.gold_positive_prompt)
+        if this_game.gold_negative_prompt is not None:
             answer_info += '\n\n' + self.messages['gold_negative_prompt'] \
-                .replace('{prompt}', this_game.gold_negative_input_form)
+                .replace('{prompt}', this_game.gold_negative_prompt)
 
         if len(this_game.submissions) == 0:
             message = self.messages['game_no_player'] + '\n\n' + answer_info
@@ -180,9 +181,6 @@ class DiffuseGameHandler(BotRequestHandler):
             return True  # it is correctly processed case.
 
         # start
-        positive_input_form = args_ctx.prompts['positive']
-        negative_input_form = args_ctx.prompts['negative']
-
         in_progress_status = ctx.reply_to(ctx.status, 'processing...', visibility="direct")
 
         in_progress_public_status = ctx.mastodon.status_post(
@@ -205,16 +203,22 @@ class DiffuseGameHandler(BotRequestHandler):
             in_reply_to_id=in_progress_public_status['id']
         )
 
+        def calc_weighted_embeddings(positive: str, negative: Optional[str]):
+            text_embeddings, uncond_embeddings = get_weighted_text_embeddings(
+                pipe=self.pipe,
+                prompt=positive,
+                uncond_prompt=negative,
+                max_embeddings_multiples=3,
+            )
+            return text_embeddings, uncond_embeddings
+
         self.current_game = DiffuseGameStatus(
-            tokenizer=self.pipe.tokenizer,
-            text_encoder=self.pipe.text_encoder,
             status=current_game_status,
             questioner_url=ctx.status['account']['url'],
             questioner_acct=ctx.status['account']['acct'],
             positive_prompt=args_ctx.prompts['positive'],
             negative_prompt=args_ctx.prompts['negative'],
-            positive_input_form=positive_input_form,
-            negative_input_form=negative_input_form,
+            calc_weighted_embeddings=calc_weighted_embeddings
         )
 
         self.current_game_timer = Timer(self.response_duration_sec, self.close_game, args=[ctx])

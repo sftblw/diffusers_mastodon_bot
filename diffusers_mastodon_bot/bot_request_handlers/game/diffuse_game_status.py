@@ -11,20 +11,14 @@ from diffusers_mastodon_bot.bot_request_handlers.game.diffuse_game_submission im
 
 class DiffuseGameStatus:
     def __init__(self,
-                 tokenizer: transformers.CLIPTokenizer,
-                 text_encoder: transformers.CLIPTextModel,
                  status: Dict[str, Any],
                  questioner_url: str,
                  questioner_acct: str,
                  positive_prompt: Optional[str],
                  negative_prompt: Optional[str],
-                 positive_input_form: str,
-                 negative_input_form: Optional[str],
-                 initial_chance = 5
+                 calc_weighted_embeddings: Callable[[str, str], Tuple[torch.Tensor, torch.Tensor]],
+                 initial_chance=5
                  ):
-        self.tokenizer = tokenizer
-        self.text_encoder = text_encoder
-
         # status or None
         self.status: Optional[Dict[str, Any]] = status
         self.eligible_status_ids_for_reply: Set[Dict[str, Any]] = set()
@@ -34,35 +28,37 @@ class DiffuseGameStatus:
 
         self.gold_positive_prompt: Optional[str] = positive_prompt
         self.gold_negative_prompt: Optional[str] = negative_prompt
-        self.gold_positive_input_form = positive_input_form
-        self.gold_negative_input_form = negative_input_form
+        self.calc_weighted_embeddings = calc_weighted_embeddings
+
+        positive_embedding, negative_embedding = self.prompt_as_embedding(positive_prompt, negative_prompt)
 
         self.initial_chance = initial_chance
 
         # tokenizer -> embedding -> last layer
+        # (utilizes fn from community pipeline)
         # torch.Size([1, 77, 768])
-        self.gold_positive_embedding: Optional[torch.Tensor] = \
-            self.prompt_as_embedding(self.gold_positive_prompt) if self.gold_positive_prompt is not None else None
-
-        # torch.Size([768])
+        self.gold_positive_embedding: Optional[torch.Tensor] = positive_embedding
         self.gold_positive_embedding_mean = \
             self.gold_positive_embedding[0].mean(dim=0) if self.gold_positive_embedding is not None else None
-
-        self.gold_negative_embedding: Optional[torch.Tensor] = \
-            self.prompt_as_embedding(self.gold_negative_prompt) if self.gold_negative_prompt is not None else None
-
         # torch.Size([768])
+
+        self.gold_negative_embedding: Optional[torch.Tensor] = negative_embedding
         self.gold_negative_embedding_mean = \
             self.gold_negative_embedding[0].mean(dim=0) if self.gold_negative_embedding is not None else None
+        # torch.Size([768])
 
         # for multiple submission, dictionary with acct is used.
         self.submissions: Dict[str, DiffuseGameSubmission] = {}
 
-    def prompt_as_embedding(self, prompt: str) -> torch.Tensor:
-        prompt_tensor: torch.Tensor = DiffusionRunner.embed_prompt(
-            prompt=prompt, tokenizer=self.tokenizer, text_encoder=self.text_encoder)
-        prompt_tensor = prompt_tensor.to('cpu')
-        return prompt_tensor
+    def prompt_as_embedding(self, positive: str, negative: Optional[str]) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+        positive_tensor, negative_tensor = self.calc_weighted_embeddings(positive, negative)
+        if positive_tensor is not None:
+            positive_tensor = positive_tensor.to('cpu')
+
+        if negative_tensor is not None:
+            negative_tensor = negative_tensor.to('cpu')
+
+        return positive_tensor, negative_tensor
 
     def set_submission(self,
                        status: Dict[str, Any],
@@ -78,23 +74,25 @@ class DiffuseGameStatus:
         :return: new submission created
         """
 
-        def get_similarity_score(prompt, gold_prompt, gold_mean):
-            if prompt is not None and gold_prompt is not None:
+        def get_similarity_score(embedding: Optional[torch.Tensor], gold_prompt: Optional[str], gold_mean: torch.Tensor):
+            if embedding is not None and gold_prompt is not None:
                 # torch.Size([1, 77, 768]) -> (indexing 0) -> (77, 768)
-                prompt_embedding: torch.Tensor = self.prompt_as_embedding(prompt)[0]
+                prompt_embedding: torch.Tensor = embedding[0]
                 prompt_mean = prompt_embedding.mean(dim=0)
                 # [768]
                 similarity: torch.Tensor = \
                     torch.cosine_similarity(gold_mean.to(torch.float32), prompt_mean.to(torch.float32), dim=0)
                 return similarity.item()
-            elif prompt is None and gold_prompt is None:
+            elif embedding is None and gold_prompt is None:
                 return 1
             else:
                 return 0
 
+        positive_embedding, negative_embedding = self.prompt_as_embedding(positive_prompt, negative_prompt)
+
         # -1 ~ 1
-        score_positive = get_similarity_score(positive_prompt, self.gold_positive_prompt, self.gold_positive_embedding_mean)
-        score_negative = get_similarity_score(negative_prompt, self.gold_negative_prompt, self.gold_negative_embedding_mean)
+        score_positive = get_similarity_score(positive_embedding, self.gold_positive_prompt, self.gold_positive_embedding_mean)
+        score_negative = get_similarity_score(negative_embedding, self.gold_negative_prompt, self.gold_negative_embedding_mean)
 
         # 0 ~ 1
         score_positive = (score_positive + 1) / 2
