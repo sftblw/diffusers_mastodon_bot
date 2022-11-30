@@ -1,6 +1,5 @@
 diffusers < 0.10, >= 0.9
 transformers
-xformers
 Mastodonplus.py >= 1.5.5, < 2.0
 ftfy
 spacy
