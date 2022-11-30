@@ -18,8 +18,6 @@ from diffusers_mastodon_bot.bot_request_handlers.diffuse_it_handler import Diffu
 from diffusers_mastodon_bot.community_pipeline.lpw_stable_diffusion \
     import StableDiffusionLongPromptWeightingPipeline as StableDiffusionLpw
 
-from diffusers import EulerAncestralDiscreteScheduler, EulerDiscreteScheduler
-
 
 def create_diffusers_pipeline(device_name='cuda', pipe_kwargs: Optional[Dict[str, Any]] = None):
     if pipe_kwargs is None:
@@ -50,9 +48,15 @@ def create_diffusers_pipeline(device_name='cuda', pipe_kwargs: Optional[Dict[str
         del pipe_kwargs['scheduler']
 
         if scheduler_param == 'euler':
-            pipe_kwargs['scheduler'] = EulerDiscreteScheduler.from_config(model_name_or_path, subfolder="scheduler")
+            from diffusers import EulerDiscreteScheduler
+            pipe_kwargs['scheduler'] = EulerDiscreteScheduler.from_pretrained(model_name_or_path, subfolder="scheduler")
         elif scheduler_param == 'euler_a':
-            pipe_kwargs['scheduler'] = EulerAncestralDiscreteScheduler.from_config(model_name_or_path, subfolder="scheduler")
+            from diffusers import EulerAncestralDiscreteScheduler
+            pipe_kwargs['scheduler'] = EulerAncestralDiscreteScheduler.from_pretrained(model_name_or_path, subfolder="scheduler")
+        elif scheduler_param == 'dpm_solver++':
+            from diffusers import DPMSolverMultistepScheduler
+            pipe_kwargs['scheduler'] = DPMSolverMultistepScheduler.from_pretrained(model_name_or_path, subfolder="scheduler")
+
 
     pipe: StableDiffusionLpw = StableDiffusionLpw.from_pretrained(
         model_name_or_path,
@@ -63,6 +67,7 @@ def create_diffusers_pipeline(device_name='cuda', pipe_kwargs: Optional[Dict[str
 
     pipe = pipe.to(device_name)
     pipe.enable_attention_slicing()
+    
     return pipe
 
 
