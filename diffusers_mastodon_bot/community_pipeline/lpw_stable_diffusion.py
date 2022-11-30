@@ -4,7 +4,7 @@ Copy & Paste from Huggingface's community pipeline, lpw_stable_diffusion.py .
 - Apache License 2.0
 - Work done by https://github.com/SkyTNT and contributors
 
-https://github.com/huggingface/diffusers/blob/813744e5f3af32a81cf31427940d1a2d3abdf578/examples/community/lpw_stable_diffusion.py
+https://github.com/huggingface/diffusers/blob/0b7225e91852df668ce85a7f7a670c00272c9ed0/examples/community/lpw_stable_diffusion.py
 
 Q. Why source copy-paste?
 A. autocompletion
@@ -25,7 +25,29 @@ from diffusers.pipelines.stable_diffusion import StableDiffusionPipelineOutput
 from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 from diffusers.schedulers import DDIMScheduler, LMSDiscreteScheduler, PNDMScheduler
 from diffusers.utils import deprecate, is_accelerate_available, logging
+
+# TODO: remove and import from diffusers.utils when the new version of diffusers is released
+from packaging import version
 from transformers import CLIPFeatureExtractor, CLIPTextModel, CLIPTokenizer
+
+
+if version.parse(version.parse(PIL.__version__).base_version) >= version.parse("9.1.0"):
+    PIL_INTERPOLATION = {
+        "linear": PIL.Image.Resampling.BILINEAR,
+        "bilinear": PIL.Image.Resampling.BILINEAR,
+        "bicubic": PIL.Image.Resampling.BICUBIC,
+        "lanczos": PIL.Image.Resampling.LANCZOS,
+        "nearest": PIL.Image.Resampling.NEAREST,
+    }
+else:
+    PIL_INTERPOLATION = {
+        "linear": PIL.Image.LINEAR,
+        "bilinear": PIL.Image.BILINEAR,
+        "bicubic": PIL.Image.BICUBIC,
+        "lanczos": PIL.Image.LANCZOS,
+        "nearest": PIL.Image.NEAREST,
+    }
+# ------------------------------------------------------------------------------
 
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -370,7 +392,7 @@ def get_weighted_text_embeddings(
 def preprocess_image(image):
     w, h = image.size
     w, h = map(lambda x: x - x % 32, (w, h))  # resize to integer multiple of 32
-    image = image.resize((w, h), resample=PIL.Image.LANCZOS)
+    image = image.resize((w, h), resample=PIL_INTERPOLATION["lanczos"])
     image = np.array(image).astype(np.float32) / 255.0
     image = image[None].transpose(0, 3, 1, 2)
     image = torch.from_numpy(image)
@@ -381,7 +403,7 @@ def preprocess_mask(mask):
     mask = mask.convert("L")
     w, h = mask.size
     w, h = map(lambda x: x - x % 32, (w, h))  # resize to integer multiple of 32
-    mask = mask.resize((w // 8, h // 8), resample=PIL.Image.NEAREST)
+    mask = mask.resize((w // 8, h // 8), resample=PIL_INTERPOLATION["nearest"])
     mask = np.array(mask).astype(np.float32) / 255.0
     mask = np.tile(mask, (4, 1, 1))
     mask = mask[None].transpose(0, 1, 2, 3)  # what does this step do?
@@ -459,7 +481,7 @@ class StableDiffusionLongPromptWeightingPipeline(DiffusionPipeline):
             scheduler._internal_dict = FrozenDict(new_config)
 
         if safety_checker is None:
-            logger.warn(
+            logger.warning(
                 f"You have disabled the safety checker for {self.__class__} by passing `safety_checker=None`. Ensure"
                 " that you abide to the conditions of the Stable Diffusion license and do not expose unfiltered"
                 " results in services or applications open to the public. Both the diffusers team and Hugging Face"
@@ -1136,3 +1158,4 @@ class StableDiffusionLongPromptWeightingPipeline(DiffusionPipeline):
             callback_steps=callback_steps,
             **kwargs,
         )
+    
