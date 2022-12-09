@@ -246,7 +246,7 @@ class DiffusionRunner:
                 + f"by {cur_process_count}")
 
             pipe_results = pipe.img2img(
-                init_image=init_image,
+                image=init_image,
                 prompt=[args_ctx.prompts['positive']] * cur_process_count,
                 negative_prompt=([args_ctx.prompts['negative_with_default']] * cur_process_count
                                     if args_ctx.prompts['negative_with_default'] is not None
