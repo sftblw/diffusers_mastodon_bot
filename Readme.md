@@ -14,6 +14,9 @@ a quick and dirty bot, running stable diffuser, via huggingface diffusers
   - optional
     - see `config_example`
 - `python -m diffusers_mastodon_bot.main`
+- additional things for performance:
+  - install `accelerate`
+  - install `xformers`
 
 ## features
 
