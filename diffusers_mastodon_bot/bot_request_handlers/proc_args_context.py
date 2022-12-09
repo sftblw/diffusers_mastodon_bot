@@ -2,6 +2,7 @@ from typing import *
 
 from dataclasses import dataclass
 
+
 class Prompts(TypedDict):
     positive: str
     negative: str
@@ -14,5 +15,4 @@ class ProcArgsContext:
     prompts: Prompts
     proc_kwargs: Dict[str, Any]
     target_image_count: int
-
-    
+    pipe_kwargs: Dict[str, Any]

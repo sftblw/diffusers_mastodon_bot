@@ -14,6 +14,7 @@ import diffusers.pipelines
 import torch
 import transformers
 import PIL
+import PIL.PngImagePlugin
 from torch import autocast
 from transformers import CLIPTokenizer, CLIPTextModel
 from transformers.modeling_outputs import BaseModelOutputWithPooling
@@ -128,7 +129,10 @@ class DiffusionRunner:
             result["time_took"] = f'{time_took}s'
 
         if ctx.bot_ctx.save_image:
-            save_result = DiffusionRunner.save_images(ctx, args_ctx, filename_root, generated_images_raw_pil)
+            save_result = DiffusionRunner.save_images(
+                ctx, args_ctx, filename_root, generated_images_raw_pil,
+                save_args=ctx.bot_ctx.save_args, save_args_text=ctx.bot_ctx.save_args_text
+            )
             result["image_filenames"] = save_result
 
         uploaded_images = DiffusionRunner.upload_images(ctx, generated_images_raw_pil)
@@ -263,29 +267,46 @@ class DiffusionRunner:
 
         return generated_images_raw_pil, has_any_nsfw
 
-
-
     @staticmethod
-    def save_images(ctx: BotRequestContext, args_ctx: ProcArgsContext, filename_root: str, generated_images_raw_pil: List[PIL.Image.Image], save_args: bool = True) -> List[str]:
+    def save_images(
+            ctx: BotRequestContext,
+            args_ctx: ProcArgsContext,
+            filename_root: str,
+            generated_images_raw_pil: List[PIL.Image.Image],
+            save_args: bool = True,
+            save_args_text: bool = False
+    ) -> List[str]:
+
         image_filenames = []
+
+        info_data: Optional[str] = None
+        if save_args:
+            info_data_obj = {
+                "args_ctx": args_ctx,
+                "args_version": "0.1.0"
+            }
+            info_data = json.dumps(info_data_obj, default=vars)
+
         # save anyway
         for idx in range(len(generated_images_raw_pil)):
             image_filename = str(Path(ctx.bot_ctx.output_save_path, filename_root + f'_{idx}' + '.png').resolve())
 
-
             image: PIL.Image.Image = generated_images_raw_pil[idx]
 
-            image.save(image_filename, "PNG")
-            
+            png_metadata = None
+            if save_args:
+                png_metadata = PIL.PngImagePlugin.PngInfo()
+                png_metadata.add_text("diffusers_mastodon_bot_args", info_data, zip=True)  # zText
+
+            image.save(image_filename, "PNG", pnginfo=png_metadata)
 
             image_filenames.append(image_filename)
 
-        if save_args:
+        if save_args and save_args_text:
             text_filename = str(Path(ctx.bot_ctx.output_save_path, filename_root + '.txt').resolve())
-            Path(text_filename).write_text(json.dumps(args_ctx, default=vars))
+            Path(text_filename).write_text(info_data)
 
         return image_filenames
-
 
     @staticmethod
     def upload_images(ctx: BotRequestContext, generated_images_raw_pil: List[PIL.Image.Image]) -> List[PIL.Image.Image]:

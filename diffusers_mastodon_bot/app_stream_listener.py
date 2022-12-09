@@ -44,7 +44,8 @@ class AppStreamListener(mastodon.StreamListener):
                  default_negative_prompt: Optional[str] = None,
                  save_image=True,
                  tag_behind_on_image_post=False,
-                 proc_kwargs: Union[None, Dict[str, Any]] = None
+                 proc_kwargs: Union[None, Dict[str, Any]] = None,
+                 pipe_kwargs: Union[None, Dict[str, Any]] = None,
                  ):
         self.mastodon: Mastodon = mastodon_client
         self.mention_to_url = mention_to_url
@@ -76,6 +77,8 @@ class AppStreamListener(mastodon.StreamListener):
         self.default_negative_prompt = default_negative_prompt
 
         self.proc_kwargs = proc_kwargs
+        self.pipe_kwargs = pipe_kwargs
+
         self.device = device
 
         self.strippers = [
@@ -101,6 +104,8 @@ class AppStreamListener(mastodon.StreamListener):
             bot_acct_url=mention_to_url,
             output_save_path=self.output_save_path,
             save_image=save_image,
+            save_args=True,
+            save_args_text=False,
             tag_behind_on_image_post=tag_behind_on_image_post,
             max_batch_process=self.max_batch_process,
             delete_processing_message=self.delete_processing_message,
@@ -189,6 +194,7 @@ class AppStreamListener(mastodon.StreamListener):
                 prompts=prompts,
                 proc_kwargs=proc_kwargs,
                 target_image_count=target_image_count,
+                pipe_kwargs=self.pipe_kwargs
             )
 
             if handler.respond_to(ctx=req_ctx, args_ctx=args_ctx):

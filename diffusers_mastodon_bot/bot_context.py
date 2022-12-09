@@ -6,6 +6,8 @@ class BotContext:
                  bot_acct_url: str,
                  output_save_path: str,
                  save_image: bool,
+                 save_args: bool,
+                 save_args_text: bool,
                  tag_behind_on_image_post: bool,
                  max_batch_process: int,
                  delete_processing_message: bool,
@@ -19,6 +21,8 @@ class BotContext:
         self.bot_acct_url = bot_acct_url
         self.output_save_path = output_save_path
         self.save_image = save_image
+        self.save_args = save_args
+        self.save_args_text = save_args_text
         self.tag_behind_on_image_post = tag_behind_on_image_post
         self.max_batch_process = max_batch_process
         self.delete_processing_message = delete_processing_message

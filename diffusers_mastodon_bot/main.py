@@ -23,6 +23,8 @@ def create_diffusers_pipeline(device_name='cuda', pipe_kwargs: Optional[Dict[str
     if pipe_kwargs is None:
         pipe_kwargs = {}
 
+    pipe_kwargs = pipe_kwargs.copy()
+
     kwargs_defaults = {
         "pretrained_model_name_or_path": 'hakurei/waifu-diffusion',
         'revision': 'fp16'
@@ -52,11 +54,12 @@ def create_diffusers_pipeline(device_name='cuda', pipe_kwargs: Optional[Dict[str
             pipe_kwargs['scheduler'] = EulerDiscreteScheduler.from_pretrained(model_name_or_path, subfolder="scheduler")
         elif scheduler_param == 'euler_a':
             from diffusers import EulerAncestralDiscreteScheduler
-            pipe_kwargs['scheduler'] = EulerAncestralDiscreteScheduler.from_pretrained(model_name_or_path, subfolder="scheduler")
+            pipe_kwargs['scheduler'] = EulerAncestralDiscreteScheduler.from_pretrained(model_name_or_path,
+                                                                                       subfolder="scheduler")
         elif scheduler_param == 'dpm_solver++':
             from diffusers import DPMSolverMultistepScheduler
-            pipe_kwargs['scheduler'] = DPMSolverMultistepScheduler.from_pretrained(model_name_or_path, subfolder="scheduler")
-
+            pipe_kwargs['scheduler'] = DPMSolverMultistepScheduler.from_pretrained(model_name_or_path,
+                                                                                   subfolder="scheduler")
 
     pipe: StableDiffusionLpw = StableDiffusionLpw.from_pretrained(
         model_name_or_path,
@@ -67,8 +70,12 @@ def create_diffusers_pipeline(device_name='cuda', pipe_kwargs: Optional[Dict[str
 
     pipe = pipe.to(device_name)
     pipe.enable_attention_slicing()
-    
-    return pipe
+
+    pipe_kwargs['pretrained_model_name_or_path'] = model_name_or_path
+    pipe_kwargs['torch_dtype'] = 'torch.float16' if torch_dtype == torch.float16 else 'torch.float32'
+    pipe_kwargs['scheduler'] = str(type(pipe.scheduler).__name__)
+
+    return pipe, pipe_kwargs
 
 
 def read_text_file(filename: str) -> Union[str, None]:
@@ -138,7 +145,8 @@ def main():
 
     logging.info('loading model')
     device_name = 'cuda'
-    pipe = create_diffusers_pipeline(device_name, pipe_kwargs)
+
+    pipe, pipe_kwargs = create_diffusers_pipeline(device_name, pipe_kwargs)
 
     logging.info('creating handlers')
 
@@ -168,6 +176,7 @@ def main():
                                  toot_listen_end=toot_listen_end,
                                  device=device_name,
                                  proc_kwargs=proc_kwargs,
+                                 pipe_kwargs=pipe_kwargs,
                                  **app_stream_listener_kwargs
                                  )
 
