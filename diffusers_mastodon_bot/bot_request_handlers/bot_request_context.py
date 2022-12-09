@@ -37,11 +37,20 @@ class BotRequestContext:
         account = self.status['account']
         return account['url'] != self.bot_ctx.bot_acct_url
 
-    def reply_to(self, status: Dict[str, Any], body: str, tag_behind: bool = False, **kwargs):
+    def reply_to(self, status: Dict[str, Any], body: str, tag_behind: bool = False, keep_context: bool = False, **kwargs):
+        """
+        reply wrap method for easy reply
+        :param status: target status to reply
+        :param body: content to reply
+        :param tag_behind: @mention will go below of reply content instead of
+        :param keep_context: use mastodon.status_reply for keeping contexts like spoiler_text
+        :param kwargs: additional arguments to mastodon.status_reply or mastodon.status_post
+        :return: same as mastodon.status_reply or mastodon.status_post, maybe new post?
+        """
         if 'visibility' not in kwargs.keys():
             kwargs['visibility'] = self.reply_visibility
 
-        if tag_behind:
+        if tag_behind or not keep_context:
             def unique_list(obj_list):
                 unique_store = set()
                 obj_unique_list = []
@@ -63,7 +72,11 @@ class BotRequestContext:
             mention_targets = unique_list(mention_targets)
 
             mention_text = ' '.join(mention_targets)
-            body = body[: max(500 - len(mention_text) - 1, 0)] + '\n' + mention_text
+
+            if tag_behind:
+                body = body[: max(500 - len(mention_text) - 1, 0)] + '\n' + mention_text
+            else:
+                body = mention_text + ' ' + body[: max(500 - len(mention_text) - 1, 0)]
 
             return self.mastodon.status_post(body, in_reply_to_id=status['id'], **kwargs)
         else:

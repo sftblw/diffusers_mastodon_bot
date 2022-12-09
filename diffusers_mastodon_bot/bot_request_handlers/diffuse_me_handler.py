@@ -50,7 +50,7 @@ class DiffuseMeHandler(BotRequestHandler):
         positive_input_form = args_ctx.prompts['positive']
         negative_input_form = args_ctx.prompts['negative']
 
-        in_progress_status = ctx.reply_to(ctx.status, 'processing...')
+        in_progress_status = ctx.reply_to(ctx.status, 'processing...', keep_context=False)
 
         if 'num_inference_steps' in args_ctx.proc_kwargs \
             and args_ctx.proc_kwargs['num_inference_steps'] is not None:
@@ -96,5 +96,6 @@ class DiffuseMeHandler(BotRequestHandler):
         in_progress_status = ctx.reply_to(status=ctx.status,
                                           body=processing_body if len(processing_body) > 0 else 'processing...',
                                           spoiler_text='processing...' if len(processing_body) > 0 else None,
+                                          keep_context=True if len(processing_body) > 0 else False
                                           )
         return in_progress_status

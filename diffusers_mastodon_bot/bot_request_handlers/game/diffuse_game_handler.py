@@ -181,7 +181,7 @@ class DiffuseGameHandler(BotRequestHandler):
             return True  # it is correctly processed case.
 
         # start
-        in_progress_status = ctx.reply_to(ctx.status, 'processing...', visibility="direct")
+        in_progress_status = ctx.reply_to(ctx.status, 'processing...', visibility="direct", keep_context=False)
 
         in_progress_public_status = ctx.mastodon.status_post(
             self.messages['new_game_generation_in_progress'],

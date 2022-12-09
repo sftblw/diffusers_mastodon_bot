@@ -82,7 +82,7 @@ class DiffuseItHandler(BotRequestHandler):
         positive_input_form = args_ctx.prompts['positive']
         negative_input_form = args_ctx.prompts['negative']
 
-        in_progress_status = ctx.reply_to(ctx.status, 'processing...')
+        in_progress_status = ctx.reply_to(ctx.status, 'processing...', keep_context=False)
 
         if 'media_attachments' not in ctx.status.keys() or len(ctx.status['media_attachments']) == 0:
             ctx.reply_to(ctx.status, 'no attachment found')
@@ -208,5 +208,6 @@ class DiffuseItHandler(BotRequestHandler):
         in_progress_status = ctx.reply_to(status=ctx.status,
                                           body=processing_body if len(processing_body) > 0 else 'processing...',
                                           spoiler_text='processing...' if len(processing_body) > 0 else None,
+                                          keep_context=True if len(processing_body) > 0 else False
                                           )
         return in_progress_status
