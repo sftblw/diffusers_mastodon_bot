@@ -23,6 +23,9 @@ from diffusers_mastodon_bot.community_pipeline.lpw_stable_diffusion \
     import StableDiffusionLongPromptWeightingPipeline as StableDiffusionLpw
 
 
+logger = logging.getLogger(__name__)
+
+
 class DiffuseMeHandler(BotRequestHandler):
     def __init__(self,
                  pipe: StableDiffusionLpw,
@@ -58,7 +61,7 @@ class DiffuseMeHandler(BotRequestHandler):
 
         diffusion_result: DiffusionRunner.Result = DiffusionRunner.run_diffusion_and_upload(self.pipe, ctx, args_ctx)
 
-        logging.info(f'building reply text')
+        logger.info(f'building reply text')
 
         reply_message, spoiler_text, media_ids = DiffusionRunner.make_reply_message_contents(
             ctx,
@@ -87,7 +90,7 @@ class DiffuseMeHandler(BotRequestHandler):
         if ctx.bot_ctx.delete_processing_message:
             ctx.mastodon.status_delete(in_progress_status)
 
-        logging.info(f'sent')
+        logger.info(f'sent')
 
         return True
 

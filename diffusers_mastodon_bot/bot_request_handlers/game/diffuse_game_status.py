@@ -9,6 +9,9 @@ from diffusers_mastodon_bot.bot_request_handlers.diffusion_runner import Diffusi
 from diffusers_mastodon_bot.bot_request_handlers.game.diffuse_game_submission import DiffuseGameSubmission
 
 
+logger = logging.getLogger(__name__)
+
+
 class DiffuseGameStatus:
     def __init__(self,
                  status: Dict[str, Any],
@@ -131,7 +134,7 @@ class DiffuseGameStatus:
         else:
             self.submissions[submitter_url] = submission
 
-        logging.info(f'game submission added by {status["account"]["acct"]} - positive score {score_positive}, negative score {score_negative}')
+        logger.info(f'game submission added by {status["account"]["acct"]} - positive score {score_positive}, negative score {score_negative}')
 
         return submission
 

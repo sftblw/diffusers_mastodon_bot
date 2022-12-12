@@ -32,6 +32,9 @@ import math
 from threading import Timer
 
 
+logger = logging.getLogger(__name__)
+
+
 def format_score(score: float):
     return f'{round(score * 100)}%'
 
@@ -103,16 +106,16 @@ class DiffuseGameHandler(BotRequestHandler):
         return False
 
     def close_game(self, any_ctx: BotRequestContext, early_end_status: Optional[Dict[str, Any]] = None):
-        logging.info("closing game")
+        logger.info("closing game")
 
         this_game = self.current_game
         self.current_game = None
 
         if this_game is None:
-            logging.info("this_game is None, early returning.")
+            logger.info("this_game is None, early returning.")
             return
         if this_game.status is None:
-            logging.info("this_game.status is None, early returning.")
+            logger.info("this_game.status is None, early returning.")
             return
 
         answer_info = ''
@@ -227,7 +230,7 @@ class DiffuseGameHandler(BotRequestHandler):
         ctx.reply_to(in_progress_status, self.messages['new_game_start_success']
                      + '\n\n' + self.current_game.status['url'], spoiler_text='', visibility='direct')
 
-        logging.info(f'sent')
+        logger.info(f'sent')
 
         return True
 

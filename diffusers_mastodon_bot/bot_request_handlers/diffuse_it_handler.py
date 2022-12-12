@@ -31,6 +31,9 @@ import glob
 from io import BytesIO
 
 
+logger = logging.getLogger(__name__)
+
+
 def convert_image(image) -> PIL.Image.Image:
     # https://stackoverflow.com/a/9459208/4394750
     background = PIL.Image.new("RGB", image.size, (255, 255, 255))  # type: ignore
@@ -86,7 +89,7 @@ class DiffuseItHandler(BotRequestHandler):
 
         if 'media_attachments' not in ctx.status.keys() or len(ctx.status['media_attachments']) == 0:
             ctx.reply_to(ctx.status, 'no attachment found')
-            logging.warning('no attachment found, early returning')
+            logger.warning('no attachment found, early returning')
             return True
 
         attachments: List[Dict[str, Any]] = ctx.status['media_attachments']
@@ -94,18 +97,18 @@ class DiffuseItHandler(BotRequestHandler):
 
         if 'url' not in first_attachment:
             ctx.reply_to(ctx.status, 'no url found from attachment')
-            logging.warning('no url found from attachment, early returning')
+            logger.warning('no url found from attachment, early returning')
             return True
 
         try:
             image: Optional[PIL.Image.Image] = download_image(first_attachment['url'])
             if image is None:
                 ctx.reply_to(ctx.status, "can't download or convert image")
-                logging.warning("can't download or convert image, early returning")
+                logger.warning("can't download or convert image, early returning")
                 return True
         except Exception as ex:
             ctx.reply_to(ctx.status, "can't download image")
-            logging.warning(f"can't download or convert image: " + "\n  ".join(traceback.format_exception(ex)))
+            logger.warning(f"can't download or convert image: " + "\n  ".join(traceback.format_exception(ex)))
 
             return True
 
@@ -167,7 +170,7 @@ class DiffuseItHandler(BotRequestHandler):
             generator=self.generator
         )
 
-        logging.info(f'building reply text')
+        logger.info(f'building reply text')
 
         reply_message, spoiler_text, media_ids = DiffusionRunner.make_reply_message_contents(
             ctx,
@@ -199,7 +202,7 @@ class DiffuseItHandler(BotRequestHandler):
         if ctx.bot_ctx.delete_processing_message:
             ctx.mastodon.status_delete(in_progress_status)
 
-        logging.info(f'sent')
+        logger.info(f'sent')
 
         return True
 

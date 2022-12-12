@@ -28,6 +28,9 @@ from diffusers_mastodon_bot.community_pipeline.lpw_stable_diffusion \
     import StableDiffusionLongPromptWeightingPipeline as StableDiffusionLpw
 
 
+logger = logging.getLogger(__name__)
+
+
 class DiffusionRunner:
     class Result(TypedDict):
         image_filenames: List[str]
@@ -170,7 +173,7 @@ class DiffusionRunner:
 
         while left_images_count > 0:
             cur_process_count = min(ctx.bot_ctx.max_batch_process, left_images_count)
-            logging.info(
+            logger.info(
                 f"processing {args_ctx.target_image_count - left_images_count + 1} of {args_ctx.target_image_count}, "
                 + f"by {cur_process_count}")
 
@@ -245,7 +248,7 @@ class DiffusionRunner:
 
         while left_images_count > 0:
             cur_process_count = min(ctx.bot_ctx.max_batch_process, left_images_count)
-            logging.info(
+            logger.info(
                 f"processing {args_ctx.target_image_count - left_images_count + 1} of {args_ctx.target_image_count}, "
                 + f"by {cur_process_count}")
 
@@ -311,7 +314,7 @@ class DiffusionRunner:
     @staticmethod
     def upload_images(ctx: BotRequestContext, generated_images_raw_pil: List[PIL.Image.Image]) -> List[PIL.Image.Image]:
 
-        logging.info(f'preparing images to upload')
+        logger.info(f'preparing images to upload')
 
         pil_image_grids = DiffusionRunner.image_grid_by_cfg(
             pil_images=generated_images_raw_pil,
@@ -321,7 +324,7 @@ class DiffusionRunner:
             max_attachment_count = ctx.bot_ctx.image_max_attachment_count
         )
 
-        logging.info(f'uploading {len(generated_images_raw_pil)} images')
+        logger.info(f'uploading {len(generated_images_raw_pil)} images')
 
         posted_images = []
 
@@ -336,7 +339,7 @@ class DiffusionRunner:
                 upload_result = ctx.mastodon.media_post(png_bytes, 'image/png')
                 posted_images.append(upload_result)
             except Exception as ex:
-                logging.error(f'error on image upload:\n' + "\n  ".join(traceback.format_exception(ex)))
+                logger.error(f'error on image upload:\n' + "\n  ".join(traceback.format_exception(ex)))
                 pass
 
         return posted_images

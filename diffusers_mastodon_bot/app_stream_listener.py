@@ -22,6 +22,9 @@ from diffusers_mastodon_bot.bot_request_handlers.proc_args_context import ProcAr
 from diffusers_mastodon_bot.utils import rip_out_html
 
 
+logger = logging.getLogger(__name__)
+
+
 class AppStreamListener(mastodon.StreamListener):
     def __init__(self, mastodon_client, diffusers_pipeline: diffusers.pipelines.StableDiffusionPipeline,
                  mention_to_url: str,
@@ -70,7 +73,7 @@ class AppStreamListener(mastodon.StreamListener):
 
         self.max_batch_process = max_batch_process
         if self.max_batch_process is not None and self.max_batch_process >= 2:
-            logging.warn('due to negative prompt bug in batch, it is temporary disabled. changing batch to 1... '
+            logger.warn('due to negative prompt bug in batch, it is temporary disabled. changing batch to 1... '
                          'https://github.com/huggingface/diffusers/issues/779')
             self.max_batch_process = 1
 
@@ -140,7 +143,7 @@ class AppStreamListener(mastodon.StreamListener):
         #     return
 
         if 'status' not in notification:
-            logging.info('no status found on notification')
+            logger.info('no status found on notification')
             return
 
         status = notification['status']
@@ -148,9 +151,9 @@ class AppStreamListener(mastodon.StreamListener):
         try:
             result = self.handle_updates(status)
             if result.value >= 500:
-                logging.warning(f'response failed for {status["url"]}: {result}')
+                logger.warning(f'response failed for {status["url"]}: {result}')
         except Exception as ex:
-            logging.error(f'error on notification respond:\n' + "\n  ".join(traceback.format_exception(ex)))
+            logger.error(f'error on notification respond:\n' + "\n  ".join(traceback.format_exception(ex)))
             pass
 
     # self response, without notification
@@ -164,9 +167,9 @@ class AppStreamListener(mastodon.StreamListener):
         try:
             result = self.handle_updates(status)
             if result.value >= 500:
-                logging.warning(f'response failed for {status["url"]}')
+                logger.warning(f'response failed for {status["url"]}')
         except Exception as ex:
-            logging.error(f'error on self status respond:\n' + "\n  ".join(traceback.format_exception(ex)))
+            logger.error(f'error on self status respond:\n' + "\n  ".join(traceback.format_exception(ex)))
             pass
 
     class HandleUpdateResult(Enum):
@@ -206,14 +209,14 @@ class AppStreamListener(mastodon.StreamListener):
 
     # TODO: refactor into own class
     def process_common_params(self, status):
-        logging.info(f'html : {status["content"]}')
+        logger.info(f'html : {status["content"]}')
         content_txt = rip_out_html(status['content'])
-        logging.info(f'text : {content_txt}')
+        logger.info(f'text : {content_txt}')
         for stripper in self.strippers:
             content_txt = stripper.sub(' ', content_txt).strip()
         content_txt = unicodedata.normalize('NFC', content_txt)
-        logging.info(f'text (strip out) : {content_txt}')
-        logging.info('starting')
+        logger.info(f'text (strip out) : {content_txt}')
+        logger.info('starting')
         proc_kwargs = self.proc_kwargs if self.proc_kwargs is not None else {}
         proc_kwargs = proc_kwargs.copy()
         if 'width' not in proc_kwargs: proc_kwargs['width'] = 512
@@ -283,8 +286,8 @@ class AppStreamListener(mastodon.StreamListener):
             content_txt_split = content_txt.split('sep.negative')
             content_txt = content_txt_split[0]
             content_txt_negative = ' '.join(content_txt_split[1:]).strip() if len(content_txt_split) >= 2 else None
-        logging.info(f'text (after argparse) : {content_txt}')
-        logging.info(f'text negative (after argparse) : {content_txt_negative}')
+        logger.info(f'text (after argparse) : {content_txt}')
+        logger.info(f'text negative (after argparse) : {content_txt_negative}')
         content_txt_negative_with_default = content_txt_negative
         if self.default_negative_prompt is not None and not ignore_default_negative_prompt:
             content_txt_negative_with_default = (
@@ -301,4 +304,4 @@ class AppStreamListener(mastodon.StreamListener):
         return prompts, proc_kwargs, target_image_count
 
     def on_unknown_event(self, name, unknown_event=None):
-        logging.info(f'unknown event {name}, {unknown_event}')
+        logger.info(f'unknown event {name}, {unknown_event}')
