@@ -19,6 +19,7 @@ from diffusers_mastodon_bot.bot_request_handlers.bot_request_handler import BotR
 from diffusers_mastodon_bot.bot_request_handlers.game.diffuse_game_handler import DiffuseGameHandler
 from diffusers_mastodon_bot.bot_request_handlers.diffuse_me_handler import DiffuseMeHandler
 from diffusers_mastodon_bot.bot_request_handlers.proc_args_context import ProcArgsContext
+from diffusers_mastodon_bot.conf.toot_listen_msg_conf import TootListenMsgConf
 from diffusers_mastodon_bot.utils import rip_out_html
 
 
@@ -28,12 +29,10 @@ logger = logging.getLogger(__name__)
 class AppStreamListener(mastodon.StreamListener):
     def __init__(self, mastodon_client, diffusers_pipeline: diffusers.pipelines.StableDiffusionPipeline,
                  mention_to_url: str,
+                 toot_listen_msg: TootListenMsgConf,
                  req_handlers: List[BotRequestHandler] = [],
                  default_visibility='unlisted',
                  output_save_path='./diffused_results',
-                 toot_listen_start: Union[str, None] = None,
-                 toot_listen_end: Union[str, None] = None,
-                 toot_listen_start_cw: Union[str, None] = None,
                  delete_processing_message=False,
                  image_count=1,
                  max_image_count=1,
@@ -93,15 +92,7 @@ class AppStreamListener(mastodon.StreamListener):
         if not Path(self.output_save_path).is_dir():
             Path(self.output_save_path).mkdir(parents=True, exist_ok=True)
 
-        self.toot_listen_start = toot_listen_start
-        self.toot_listen_start_cw = toot_listen_start_cw
-        self.toot_listen_end = toot_listen_end
-
-        if self.toot_listen_start is None:
-            self.toot_listen_start = f'listening (diffusers_mastodon_bot)'
-
-        if self.toot_listen_end is None:
-            self.toot_listen_end = f'exiting (diffusers_mastodon_bot)\n\ndo not send me anymore'
+        self.toot_listen_msg = toot_listen_msg
 
         self.bot_ctx = BotContext(
             bot_acct_url=mention_to_url,
@@ -124,7 +115,7 @@ class AppStreamListener(mastodon.StreamListener):
 
         def exit_toot():
             if toot_on_start_end:
-                self.mastodon.status_post(self.toot_listen_end, visibility=default_visibility)
+                self.mastodon.status_post(self.toot_listen_msg.toot_listen_end, visibility=default_visibility)
             pass
 
         atexit.register(exit_toot)
@@ -132,8 +123,8 @@ class AppStreamListener(mastodon.StreamListener):
         print('listening')
         if toot_on_start_end:
             self.mastodon.status_post(
-                self.toot_listen_start,
-                spoiler_text=self.toot_listen_start_cw,
+                self.toot_listen_msg.toot_listen_start,
+                spoiler_text=self.toot_listen_msg.toot_listen_start_cw,
                 visibility=default_visibility
             )
 
