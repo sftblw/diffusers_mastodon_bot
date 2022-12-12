@@ -1,6 +1,6 @@
 # You should try
 # conda install xformers -c xformers/label/dev
-name: ./condaenv_linux
+name: ./condaenv
 channels:
   - pytorch
   - nvidia
