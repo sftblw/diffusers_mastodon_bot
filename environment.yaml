@@ -73,7 +73,7 @@ dependencies:
   - cython-blis=0.7.9=py39hc266a54_1
   - dataclasses=0.8=pyhc8e2a94_3
   - datasets=2.7.1=pyhd8ed1ab_0
-  - diffusers=0.10.0=pyhd8ed1ab_0
+  - diffusers=0.10.2=pyhd8ed1ab_0
   - dill=0.3.6=pyhd8ed1ab_1
   - filelock=3.8.2=pyhd8ed1ab_0
   - freetype=2.12.1=h546665d_1

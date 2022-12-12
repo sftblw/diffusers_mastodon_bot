@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 from typing import *
 import json
+from diffusers.utils.import_utils import is_xformers_available
 
 from mastodon import Mastodon
 
@@ -18,6 +19,7 @@ from diffusers_mastodon_bot.bot_request_handlers.diffuse_it_handler import Diffu
 from diffusers_mastodon_bot.community_pipeline.lpw_stable_diffusion \
     import StableDiffusionLongPromptWeightingPipeline as StableDiffusionLpw
 
+logger = logging.getLogger(__name__)
 
 def create_diffusers_pipeline(device_name='cuda', pipe_kwargs: Optional[Dict[str, Any]] = None):
     if pipe_kwargs is None:
@@ -70,6 +72,15 @@ def create_diffusers_pipeline(device_name='cuda', pipe_kwargs: Optional[Dict[str
 
     pipe = pipe.to(device_name)
     pipe.enable_attention_slicing()
+
+    if is_xformers_available():
+        try:
+            pipe.unet.enable_xformers_memory_efficient_attention(True)
+        except Exception as e:
+            logger.warning(
+                "Could not enable memory efficient attention. Make sure xformers is installed"
+                f" correctly and a GPU is available: {e}"
+            )
 
     pipe_kwargs['pretrained_model_name_or_path'] = model_name_or_path
     pipe_kwargs['torch_dtype'] = 'torch.float16' if torch_dtype == torch.float16 else 'torch.float32'
@@ -131,24 +142,24 @@ def main():
 
     diffusion_game_messages = load_json_dict('./config/diffusion_game_messages.json')
 
-    logging.info('starting')
+    logger.info('starting')
     mastodon = Mastodon(
         access_token=access_token,
         api_base_url=endpoint_url
     )
 
-    logging.info('info checking')
+    logger.info('info checking')
     account = mastodon.account_verify_credentials()
     my_url = account['url']
     my_acct = account['acct']
-    logging.info(f'you are, acct: {my_acct} / url: {my_url}')
+    logger.info(f'you are, acct: {my_acct} / url: {my_url}')
 
-    logging.info('loading model')
+    logger.info('loading model')
     device_name = 'cuda'
 
     pipe, pipe_kwargs = create_diffusers_pipeline(device_name, pipe_kwargs)
 
-    logging.info('creating handlers')
+    logger.info('creating handlers')
 
     req_handlers: List[BotRequestHandler] = [
         DiffuseMeHandler(
@@ -167,7 +178,7 @@ def main():
         )
     ]  # type: ignore
 
-    logging.info('creating listener')
+    logger.info('creating listener')
     listener = AppStreamListener(mastodon, pipe,
                                  mention_to_url=my_url,
                                  req_handlers=req_handlers,
