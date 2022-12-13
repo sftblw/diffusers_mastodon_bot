@@ -144,7 +144,7 @@ class AppStreamListener(mastodon.StreamListener):
             if result.value >= 500:
                 logger.warning(f'response failed for {status["url"]}: {result}')
         except Exception as ex:
-            logger.error(f'error on notification respond:\n' + "\n  ".join(traceback.format_exception(ex)))
+            logger.error(f'error on notification respond:\n' + "\n  ".join(traceback.format_exc(ex)))
             pass
 
     # self response, without notification
@@ -160,7 +160,7 @@ class AppStreamListener(mastodon.StreamListener):
             if result.value >= 500:
                 logger.warning(f'response failed for {status["url"]}')
         except Exception as ex:
-            logger.error(f'error on self status respond:\n' + "\n  ".join(traceback.format_exception(ex)))
+            logger.error(f'error on self status respond:\n' + "\n  ".join(traceback.format_exc(ex)))
             pass
 
     class HandleUpdateResult(Enum):

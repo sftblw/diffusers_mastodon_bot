@@ -339,7 +339,7 @@ class DiffusionRunner:
                 upload_result = ctx.mastodon.media_post(png_bytes, 'image/png')
                 posted_images.append(upload_result)
             except Exception as ex:
-                logger.error(f'error on image upload:\n' + "\n  ".join(traceback.format_exception(ex)))
+                logger.error(f'error on image upload:\n' + "\n  ".join(traceback.format_exc(ex)))
                 pass
 
         return posted_images
