@@ -118,18 +118,17 @@ class DiffusionRunner:
             "time_took": ''
         }
 
-        with autocast(ctx.bot_ctx.device_name):
-            start_time = time.time()
-            
-            generated_images_raw_pil, has_any_nsfw = run_diffusion_fn(ctx, args_ctx, pipe, **run_diffusion_fn_kwargs)
-            result["has_any_nsfw"] = has_any_nsfw
-            
-            end_time = time.time()
+        start_time = time.time()
 
-            time_took = end_time - start_time
-            time_took = int(time_took * 1000) / 1000
+        generated_images_raw_pil, has_any_nsfw = run_diffusion_fn(ctx, args_ctx, pipe, **run_diffusion_fn_kwargs)
+        result["has_any_nsfw"] = has_any_nsfw
 
-            result["time_took"] = f'{time_took}s'
+        end_time = time.time()
+
+        time_took = end_time - start_time
+        time_took = int(time_took * 1000) / 1000
+
+        result["time_took"] = f'{time_took}s'
 
         if ctx.bot_ctx.save_image:
             save_result = DiffusionRunner.save_images(
@@ -339,7 +338,7 @@ class DiffusionRunner:
                 upload_result = ctx.mastodon.media_post(png_bytes, 'image/png')
                 posted_images.append(upload_result)
             except Exception as ex:
-                logger.error(f'error on image upload:\n' + "\n  ".join(traceback.format_exc(ex)))
+                logger.error(f'error on image upload:\n' + traceback.format_exc())
                 pass
 
         return posted_images
