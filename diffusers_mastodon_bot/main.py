@@ -113,7 +113,7 @@ def main():
         req_handlers=req_handlers,
         toot_listen_msg=toot_listen_msg,
         device=diffusion_conf.pipeline.device_name,
-        proc_kwargs=proc_kwargs,
+        proc_kwargs=OmegaConf.to_container(proc_kwargs),
         pipe_kwargs=pipe_kwargs,
         **app_stream_listener_kwargs
     )
