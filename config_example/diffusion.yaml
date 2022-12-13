@@ -1,0 +1,21 @@
+# see: diffusers_mastodon_bot/model_load.py
+pipeline:
+  # local path or HF model repo name. (ex: hakurei/waifu-diffusion)
+  pretrained_model_name_or_path: ./scripts/models/multi_wsum__0.05__anything_v3_0__cafe_insta_ep9__0.3__wd_v1_3
+  # git branch of repo, omittable
+  revision: main
+  # torch.float16 to reduce memory, or torch.float32
+  torch_dtype: torch.float16
+  scheduler: DPM_SOLVER_PP
+
+process:
+  # must be in multiply of 64 (if I remember it correctly).
+  # larger image size means more VRAM usage, but not always mean better result.
+  width: 512
+  height: 704
+  # default inference steps, when it is not specified.
+  num_inference_steps: 28
+  # default guidance scale (CFG scale, maybe?), when it is not specified.
+  guidance_scale: 12.0
+  # default img2img strength.
+  strength: 0.65

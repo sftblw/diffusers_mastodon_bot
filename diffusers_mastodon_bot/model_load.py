@@ -6,63 +6,12 @@ import torch
 
 from diffusers_mastodon_bot.community_pipeline.lpw_stable_diffusion \
     import StableDiffusionLongPromptWeightingPipeline as StableDiffusionLpw
-
+from diffusers_mastodon_bot.conf.diffusion_conf import PipelineConf
 
 logger = logging.getLogger(__name__)
 
 
-def create_diffusers_pipeline(device_name='cuda', pipe_kwargs: Optional[Dict[str, Any]] = None):
-    if pipe_kwargs is None:
-        pipe_kwargs = {}
-
-    pipe_kwargs = pipe_kwargs.copy()
-
-    kwargs_defaults = {
-        "pretrained_model_name_or_path": 'hakurei/waifu-diffusion',
-        'revision': 'fp16'
-    }
-
-    for key, value in kwargs_defaults.items():
-        if key not in pipe_kwargs:
-            pipe_kwargs[key] = value
-
-    model_name_or_path = pipe_kwargs['pretrained_model_name_or_path']
-    del pipe_kwargs['pretrained_model_name_or_path']
-
-    torch_dtype = torch.float32
-    if 'torch_dtype' in pipe_kwargs:
-        dtype_param = pipe_kwargs['torch_dtype']
-        del pipe_kwargs['torch_dtype']
-
-        if dtype_param == 'torch.float16':
-            torch_dtype = torch.float16
-
-    if 'scheduler' in pipe_kwargs:
-        scheduler_param = pipe_kwargs['scheduler']
-        del pipe_kwargs['scheduler']
-
-        if scheduler_param == 'euler':
-            from diffusers import EulerDiscreteScheduler
-            pipe_kwargs['scheduler'] = EulerDiscreteScheduler.from_pretrained(model_name_or_path, subfolder="scheduler")
-        elif scheduler_param == 'euler_a':
-            from diffusers import EulerAncestralDiscreteScheduler
-            pipe_kwargs['scheduler'] = EulerAncestralDiscreteScheduler.from_pretrained(model_name_or_path,
-                                                                                       subfolder="scheduler")
-        elif scheduler_param == 'dpm_solver++':
-            from diffusers import DPMSolverMultistepScheduler
-            pipe_kwargs['scheduler'] = DPMSolverMultistepScheduler.from_pretrained(model_name_or_path,
-                                                                                   subfolder="scheduler")
-
-    pipe: StableDiffusionLpw = StableDiffusionLpw.from_pretrained(
-        model_name_or_path,
-        torch_dtype=torch_dtype,
-        safety_checker=None,
-        **pipe_kwargs
-    )
-
-    pipe = pipe.to(device_name)
-    pipe.enable_attention_slicing()
-
+def enable_xformers(pipe: StableDiffusionLpw):
     if is_xformers_available():
         try:
             pipe.unet.enable_xformers_memory_efficient_attention(True)
@@ -71,9 +20,32 @@ def create_diffusers_pipeline(device_name='cuda', pipe_kwargs: Optional[Dict[str
                 "Could not enable memory efficient attention. Make sure xformers is installed"
                 f" correctly and a GPU is available: {e}"
             )
+    else:
+        logger.info('xformers is not available. not enabling it. ("xformers" gives performance boost)')
 
-    pipe_kwargs['pretrained_model_name_or_path'] = model_name_or_path
-    pipe_kwargs['torch_dtype'] = 'torch.float16' if torch_dtype == torch.float16 else 'torch.float32'
+
+def create_diffusers_pipeline(conf: PipelineConf):
+    pipe_kwargs = {
+        "pretrained_model_name_or_path": conf.pretrained_model_name_or_path,
+        "torch_dtype": torch.float16 if conf.torch_dtype == 'torch.float16' else torch.float32,
+        "scheduler": conf.scheduler.value.from_pretrained(conf.pretrained_model_name_or_path, subfolder="scheduler"),
+    }
+
+    if conf.use_safety_checker:
+        pipe_kwargs['safety_checker'] = None
+    if conf.revision is not None:
+        pipe_kwargs['revision'] = conf.revision
+
+    pipe: StableDiffusionLpw = StableDiffusionLpw.from_pretrained(
+        **pipe_kwargs
+    )
+
+    pipe = pipe.to(conf.device_name)
+    pipe.enable_attention_slicing()
+
+    pipe_kwargs = pipe_kwargs.copy()
+
+    pipe_kwargs['torch_dtype'] = conf.torch_dtype
     pipe_kwargs['scheduler'] = str(type(pipe.scheduler).__name__)
 
     return pipe, pipe_kwargs

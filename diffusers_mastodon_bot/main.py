@@ -17,6 +17,7 @@ from diffusers_mastodon_bot.conf.conf_helper import load_structured_conf_yaml
 
 
 from diffusers_mastodon_bot.conf.instance_conf import InstanceConf
+from diffusers_mastodon_bot.conf.diffusion_conf import DiffusionConf
 from diffusers_mastodon_bot.conf.toot_listen_msg_conf import TootListenMsgConf
 
 from diffusers_mastodon_bot.model_load import create_diffusers_pipeline
@@ -58,8 +59,11 @@ def main():
     instance: InstanceConf = load_structured_conf_yaml(InstanceConf, './config/instance.yaml')  # type: ignore
     toot_listen_msg: TootListenMsgConf = load_structured_conf_yaml(TootListenMsgConf, './config/toot_listen_msg.yaml')  # type: ignore
 
-    pipe_kwargs = load_json_dict('./config/pipe_kwargs.json')
-    proc_kwargs = load_json_dict('./config/proc_kwargs.json')
+    diffusion_conf: DiffusionConf = load_structured_conf_yaml(DiffusionConf, './config/diffusion.yaml')  # type: ignore
+
+    pipe_conf = diffusion_conf.pipeline
+    proc_kwargs = diffusion_conf.process
+
     app_stream_listener_kwargs = load_json_dict('./config/app_stream_listener_kwargs.json')
     if app_stream_listener_kwargs is None:
         app_stream_listener_kwargs = {}
@@ -79,9 +83,8 @@ def main():
     logger.info(f'you are, acct: {my_acct} / url: {my_url}')
 
     logger.info('loading model')
-    device_name = 'cuda'
 
-    pipe, pipe_kwargs = create_diffusers_pipeline(device_name, pipe_kwargs)
+    pipe, pipe_kwargs = create_diffusers_pipeline(pipe_conf)
 
     logger.info('creating handlers')
 
@@ -109,7 +112,7 @@ def main():
         mention_to_url=my_url,
         req_handlers=req_handlers,
         toot_listen_msg=toot_listen_msg,
-        device=device_name,
+        device=diffusion_conf.pipeline.device_name,
         proc_kwargs=proc_kwargs,
         pipe_kwargs=pipe_kwargs,
         **app_stream_listener_kwargs

@@ -120,7 +120,7 @@ class AppStreamListener(mastodon.StreamListener):
 
         atexit.register(exit_toot)
 
-        print('listening')
+        logger.info('listening')
         if toot_on_start_end:
             self.mastodon.status_post(
                 self.toot_listen_msg.toot_listen_start,
