@@ -108,7 +108,7 @@ class DiffuseItHandler(BotRequestHandler):
                 return True
         except Exception as ex:
             ctx.reply_to(ctx.status, "can't download image")
-            logger.warning(f"can't download or convert image: " + "\n  ".join(traceback.format_exception(ex)))
+            logger.warning(f"can't download or convert image: " + "\n  ".join(traceback.format_exc(ex)))
 
             return True
 
