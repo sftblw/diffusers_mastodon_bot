@@ -1,12 +1,11 @@
 import logging
-from typing import *
 from diffusers.utils.import_utils import is_xformers_available
 
 import torch
 
 from diffusers_mastodon_bot.community_pipeline.lpw_stable_diffusion \
     import StableDiffusionLongPromptWeightingPipeline as StableDiffusionLpw
-from diffusers_mastodon_bot.conf.diffusion_conf import PipelineConf
+from diffusers_mastodon_bot.conf.diffusion.pipeline_conf import PipelineConf
 
 logger = logging.getLogger(__name__)
 
@@ -43,9 +42,9 @@ def create_diffusers_pipeline(conf: PipelineConf):
     pipe = pipe.to(conf.device_name)
     pipe.enable_attention_slicing()
 
-    pipe_kwargs = pipe_kwargs.copy()
+    pipe_kwargs_info = pipe_kwargs.copy()
 
-    pipe_kwargs['torch_dtype'] = conf.torch_dtype
-    pipe_kwargs['scheduler'] = str(type(pipe.scheduler).__name__)
+    pipe_kwargs_info['torch_dtype'] = conf.torch_dtype
+    pipe_kwargs_info['scheduler'] = str(type(pipe.scheduler).__name__)
 
-    return pipe, pipe_kwargs
+    return pipe, pipe_kwargs_info

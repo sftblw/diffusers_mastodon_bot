@@ -1,35 +1,21 @@
-import abc
-import io
-import json
 import logging
-import math
+import logging
 import re
-import time
-from datetime import datetime
-from pathlib import Path
 import traceback
+from io import BytesIO
 from typing import *
 
-import torch
-import transformers
 import PIL
+import requests
+import torch
 from PIL import Image
-from torch import autocast
-
-from .bot_request_handler import BotRequestHandler
-from .bot_request_context import BotRequestContext
-from .diffusion_runner import DiffusionRunner
-from .proc_args_context import ProcArgsContext
-from ..utils import image_grid
 
 from diffusers_mastodon_bot.community_pipeline.lpw_stable_diffusion \
     import StableDiffusionLongPromptWeightingPipeline as StableDiffusionLpw
-
-
-import requests
-import glob
-from io import BytesIO
-
+from .bot_request_context import BotRequestContext
+from .bot_request_handler import BotRequestHandler
+from .diffusion_runner import DiffusionRunner
+from .proc_args_context import ProcArgsContext
 
 logger = logging.getLogger(__name__)
 
@@ -39,11 +25,12 @@ def convert_image(image) -> PIL.Image.Image:
     background = PIL.Image.new("RGB", image.size, (255, 255, 255))  # type: ignore
     image_split = image.split()
     if len(image_split) >= 4:
-        background.paste(image, mask=image.split()[3]) # 3 is the alpha channel
+        background.paste(image, mask=image.split()[3])  # 3 is the alpha channel
     else:
         background.paste(image)
         image = background.convert("RGB")
     return image.convert("RGB")
+
 
 def download_image(url) -> Optional[PIL.Image.Image]:
     # this fn is from HF's textual inversion notebook, but modified.
@@ -65,7 +52,7 @@ class DiffuseItHandler(BotRequestHandler):
         self.pipe = pipe
         self.tag_name = tag_name
         self.allow_self_request_only = allow_self_request_only
-        self.re_strip_special_token = re.compile('<\|.*?\|>')
+        self.re_strip_special_token = re.compile(r'<\|.*?\|>')
 
         self.generator = torch.Generator(device='cuda')
 
@@ -75,9 +62,9 @@ class DiffuseItHandler(BotRequestHandler):
             return False
 
         return (
-            ( ctx.mentions_bot() and ctx.not_from_self() and not self.allow_self_request_only)
-            or
-            not ctx.not_from_self()
+                (ctx.mentions_bot() and ctx.not_from_self() and not self.allow_self_request_only)
+                or
+                not ctx.not_from_self()
         )
 
     def respond_to(self, ctx: BotRequestContext, args_ctx: ProcArgsContext) -> bool:
@@ -114,13 +101,13 @@ class DiffuseItHandler(BotRequestHandler):
 
         # follow orientation of image
         target_width = args_ctx.proc_kwargs['width']
-        target_height =  args_ctx.proc_kwargs['height']
+        target_height = args_ctx.proc_kwargs['height']
         if image.width == image.height and target_width != target_height:
             # make it as square
             target_width = min(target_width, target_height)
             target_height = min(target_width, target_height)
-        elif ( image.width > image.height and target_width < target_height ) \
-            or ( image.width < image.height and target_width > target_height ):
+        elif (image.width > image.height and target_width < target_height) \
+                or (image.width < image.height and target_width > target_height):
             # fit orientation
             temp = target_height
             target_height = target_width
@@ -146,7 +133,7 @@ class DiffuseItHandler(BotRequestHandler):
 
         # fit in the image
         image.thumbnail(
-            size = (target_width, target_height),
+            size=(target_width, target_height),
             resample=PIL.Image.Resampling.LANCZOS  # type: ignore
         )
         image = convert_image(image)
@@ -154,7 +141,7 @@ class DiffuseItHandler(BotRequestHandler):
         # increase steps by strength, to run like default
         num_inference_steps_original = None
         if 'num_inference_steps' in args_ctx.proc_kwargs \
-            and args_ctx.proc_kwargs['num_inference_steps'] is not None:
+                and args_ctx.proc_kwargs['num_inference_steps'] is not None:
             strength = args_ctx.proc_kwargs['strength'] if 'strength' in args_ctx.proc_kwargs else None
             if strength is None:
                 strength = 0.8  # pipeline default
@@ -166,7 +153,7 @@ class DiffuseItHandler(BotRequestHandler):
             self.pipe,
             ctx,
             args_ctx,
-            init_image = image,
+            init_image=image,
             generator=self.generator
         )
 
@@ -178,13 +165,15 @@ class DiffuseItHandler(BotRequestHandler):
             diffusion_result,
             detecting_args=['guidance_scale', 'strength'],
             args_custom_text=f'args.num_inference_steps (actual): {args_ctx.proc_kwargs["num_inference_steps"]} (input: {num_inference_steps_original})' \
-                if num_inference_steps_original is not None \
+                if num_inference_steps_original is not None
                 else None,
             positive_input_form=positive_input_form,
             negative_input_form=negative_input_form
         )
 
-        reply_target_status = ctx.status if ctx.bot_ctx.delete_processing_message else in_progress_status
+        behavior_conf = ctx.bot_ctx.behavior_conf
+
+        reply_target_status = ctx.status if behavior_conf.delete_processing_message else in_progress_status
 
         replied_status = ctx.reply_to(
             reply_target_status,
@@ -193,20 +182,21 @@ class DiffuseItHandler(BotRequestHandler):
             visibility=ctx.reply_visibility,
             spoiler_text=spoiler_text,
             sensitive=True,
-            tag_behind=ctx.bot_ctx.tag_behind_on_image_post
+            tag_behind=ctx.bot_ctx.behavior_conf.tag_behind_on_image_post
         )
 
-        if ctx.bot_ctx.tag_behind_on_image_post:
+        if behavior_conf.tag_behind_on_image_post:
             ctx.mastodon.status_reblog(replied_status['id'])
 
-        if ctx.bot_ctx.delete_processing_message:
+        if behavior_conf.delete_processing_message:
             ctx.mastodon.status_delete(in_progress_status)
 
         logger.info(f'sent')
 
         return True
 
-    def reply_in_progress(self, ctx: BotRequestContext, args_ctx: ProcArgsContext, positive_input_form: str, negative_input_form: Optional[str]):
+    def reply_in_progress(self, ctx: BotRequestContext, args_ctx: ProcArgsContext, positive_input_form: str,
+                          negative_input_form: Optional[str]):
         processing_body = DiffusionRunner.make_processing_body(args_ctx, positive_input_form, negative_input_form)
         in_progress_status = ctx.reply_to(status=ctx.status,
                                           body=processing_body if len(processing_body) > 0 else 'processing...',

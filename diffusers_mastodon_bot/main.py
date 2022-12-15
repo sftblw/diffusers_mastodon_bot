@@ -3,22 +3,21 @@ import sys
 from pathlib import Path
 from typing import *
 import json
-from diffusers.utils.import_utils import is_xformers_available
 
 from mastodon import Mastodon
-from omegaconf import OmegaConf
 
 from diffusers_mastodon_bot.app_stream_listener import AppStreamListener
 from diffusers_mastodon_bot.bot_request_handlers.bot_request_handler import BotRequestHandler
 from diffusers_mastodon_bot.bot_request_handlers.game.diffuse_game_handler import DiffuseGameHandler
 from diffusers_mastodon_bot.bot_request_handlers.diffuse_me_handler import DiffuseMeHandler
 from diffusers_mastodon_bot.bot_request_handlers.diffuse_it_handler import DiffuseItHandler
+from diffusers_mastodon_bot.conf.app.app_conf import AppConf
 from diffusers_mastodon_bot.conf.conf_helper import load_structured_conf_yaml
 
 
-from diffusers_mastodon_bot.conf.instance_conf import InstanceConf
-from diffusers_mastodon_bot.conf.diffusion_conf import DiffusionConf
-from diffusers_mastodon_bot.conf.toot_listen_msg_conf import TootListenMsgConf
+from diffusers_mastodon_bot.conf.app.instance_conf import InstanceConf
+from diffusers_mastodon_bot.conf.diffusion.diffusion_conf import DiffusionConf
+from diffusers_mastodon_bot.conf.message.message_conf import MessageConf
 
 from diffusers_mastodon_bot.model_load import create_diffusers_pipeline
 
@@ -57,16 +56,11 @@ def main():
     )
 
     instance: InstanceConf = load_structured_conf_yaml(InstanceConf, './config/instance.yaml')  # type: ignore
-    toot_listen_msg: TootListenMsgConf = load_structured_conf_yaml(TootListenMsgConf, './config/toot_listen_msg.yaml')  # type: ignore
-
+    app_conf: AppConf = load_structured_conf_yaml(AppConf, './config/app.yaml')  # type: ignore
     diffusion_conf: DiffusionConf = load_structured_conf_yaml(DiffusionConf, './config/diffusion.yaml')  # type: ignore
+    message_conf: MessageConf = load_structured_conf_yaml(MessageConf, './config/message.yaml')  # type: ignore
 
     pipe_conf = diffusion_conf.pipeline
-    proc_kwargs = diffusion_conf.process
-
-    app_stream_listener_kwargs = load_json_dict('./config/app_stream_listener_kwargs.json')
-    if app_stream_listener_kwargs is None:
-        app_stream_listener_kwargs = {}
 
     diffusion_game_messages = load_json_dict('./config/diffusion_game_messages.json')
 
@@ -84,7 +78,7 @@ def main():
 
     logger.info('loading model')
 
-    pipe, pipe_kwargs = create_diffusers_pipeline(pipe_conf)
+    pipe, pipe_kwargs_info = create_diffusers_pipeline(pipe_conf)
 
     logger.info('creating handlers')
 
@@ -111,11 +105,10 @@ def main():
         diffusers_pipeline=pipe,
         mention_to_url=my_url,
         req_handlers=req_handlers,
-        toot_listen_msg=toot_listen_msg,
-        device=diffusion_conf.pipeline.device_name,
-        proc_kwargs=OmegaConf.to_container(proc_kwargs),
-        pipe_kwargs=pipe_kwargs,
-        **app_stream_listener_kwargs
+        diffusion_conf=diffusion_conf,
+        app_conf=app_conf,
+        message_conf=message_conf,
+        pipe_kwargs_info=pipe_kwargs_info
     )
 
     mastodon.stream_user(listener, run_async=False, timeout=10000)

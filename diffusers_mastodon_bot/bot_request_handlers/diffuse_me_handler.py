@@ -1,27 +1,14 @@
-import abc
-import io
-import json
 import logging
-import math
+import logging
 import re
-import time
-from datetime import datetime
-from pathlib import Path
 from typing import *
-
-import diffusers.pipelines
-import transformers
-from PIL.Image import Image
-from torch import autocast
-
-from .bot_request_handler import BotRequestHandler
-from .bot_request_context import BotRequestContext
-from .diffusion_runner import DiffusionRunner
-from .proc_args_context import ProcArgsContext
 
 from diffusers_mastodon_bot.community_pipeline.lpw_stable_diffusion \
     import StableDiffusionLongPromptWeightingPipeline as StableDiffusionLpw
-
+from .bot_request_context import BotRequestContext
+from .bot_request_handler import BotRequestHandler
+from .diffusion_runner import DiffusionRunner
+from .proc_args_context import ProcArgsContext
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +22,7 @@ class DiffuseMeHandler(BotRequestHandler):
         self.pipe = pipe
         self.tag_name = tag_name
         self.allow_self_request_only = allow_self_request_only
-        self.re_strip_special_token = re.compile('<\|.*?\|>')
+        self.re_strip_special_token = re.compile(r'<\|.*?\|>')
 
     def is_eligible_for(self, ctx: BotRequestContext) -> bool:
         contains_hash = ctx.contains_tag_name(self.tag_name)
@@ -43,9 +30,9 @@ class DiffuseMeHandler(BotRequestHandler):
             return False
 
         return (
-            ( ctx.mentions_bot() and ctx.not_from_self() and not self.allow_self_request_only)
-            or
-            not ctx.not_from_self()
+                (ctx.mentions_bot() and ctx.not_from_self() and not self.allow_self_request_only)
+                or
+                not ctx.not_from_self()
         )
 
     def respond_to(self, ctx: BotRequestContext, args_ctx: ProcArgsContext) -> bool:
@@ -56,7 +43,7 @@ class DiffuseMeHandler(BotRequestHandler):
         in_progress_status = ctx.reply_to(ctx.status, 'processing...', keep_context=False)
 
         if 'num_inference_steps' in args_ctx.proc_kwargs \
-            and args_ctx.proc_kwargs['num_inference_steps'] is not None:
+                and args_ctx.proc_kwargs['num_inference_steps'] is not None:
             args_ctx.proc_kwargs['num_inference_steps'] = int(args_ctx.proc_kwargs['num_inference_steps'])
 
         diffusion_result: DiffusionRunner.Result = DiffusionRunner.run_diffusion_and_upload(self.pipe, ctx, args_ctx)
@@ -72,7 +59,9 @@ class DiffuseMeHandler(BotRequestHandler):
             negative_input_form=negative_input_form
         )
 
-        reply_target_status = ctx.status if ctx.bot_ctx.delete_processing_message else in_progress_status
+        behavior_conf = ctx.bot_ctx.behavior_conf
+
+        reply_target_status = ctx.status if behavior_conf.delete_processing_message else in_progress_status
 
         replied_status = ctx.reply_to(
             reply_target_status,
@@ -81,20 +70,21 @@ class DiffuseMeHandler(BotRequestHandler):
             visibility=ctx.reply_visibility,
             spoiler_text=spoiler_text,
             sensitive=True,
-            tag_behind=ctx.bot_ctx.tag_behind_on_image_post
+            tag_behind=behavior_conf.tag_behind_on_image_post
         )
 
-        if ctx.bot_ctx.tag_behind_on_image_post:
+        if behavior_conf.tag_behind_on_image_post:
             ctx.mastodon.status_reblog(replied_status['id'])
 
-        if ctx.bot_ctx.delete_processing_message:
+        if behavior_conf.delete_processing_message:
             ctx.mastodon.status_delete(in_progress_status)
 
         logger.info(f'sent')
 
         return True
 
-    def reply_in_progress(self, ctx: BotRequestContext, args_ctx: ProcArgsContext, positive_input_form: str, negative_input_form: Optional[str]):
+    def reply_in_progress(self, ctx: BotRequestContext, args_ctx: ProcArgsContext, positive_input_form: str,
+                          negative_input_form: Optional[str]):
         processing_body = DiffusionRunner.make_processing_body(args_ctx, positive_input_form, negative_input_form)
         in_progress_status = ctx.reply_to(status=ctx.status,
                                           body=processing_body if len(processing_body) > 0 else 'processing...',

@@ -1,6 +1,7 @@
 from typing_extensions import TypedDict
 from typing import *
 
+
 class DiffuseGameMessages(TypedDict):
     new_game_already_exists: str
     new_game_should_be_direct: str
