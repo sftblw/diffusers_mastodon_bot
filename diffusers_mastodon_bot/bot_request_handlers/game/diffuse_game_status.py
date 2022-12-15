@@ -3,11 +3,8 @@ import statistics
 from typing import *
 
 import torch
-import transformers
 
-from diffusers_mastodon_bot.bot_request_handlers.diffusion_runner import DiffusionRunner
 from diffusers_mastodon_bot.bot_request_handlers.game.diffuse_game_submission import DiffuseGameSubmission
-
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +50,8 @@ class DiffuseGameStatus:
         # for multiple submission, dictionary with acct is used.
         self.submissions: Dict[str, DiffuseGameSubmission] = {}
 
-    def prompt_as_embedding(self, positive: str, negative: Optional[str]) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+    def prompt_as_embedding(self, positive: str, negative: Optional[str]) \
+            -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         positive_tensor, negative_tensor = self.calc_weighted_embeddings(positive, negative)
         if positive_tensor is not None:
             positive_tensor = positive_tensor.to('cpu')
@@ -73,11 +71,13 @@ class DiffuseGameStatus:
         :param status: submission to process
         :param positive_prompt: positive answer submission, preprocessed
         :param negative_prompt: negative answer submission, preprocessed
-        :param include_negative_on_final_score: Most users do not count on negative answer. do not include them on final answer.
+        :param include_negative_on_final_score: Most users do not count on negative answer.
+               do not include them on final answer.
         :return: new submission created
         """
 
-        def get_similarity_score(embedding: Optional[torch.Tensor], gold_prompt: Optional[str], gold_mean: torch.Tensor):
+        def get_similarity_score(embedding: Optional[torch.Tensor], gold_prompt: Optional[str],
+                                 gold_mean: torch.Tensor):
             if embedding is not None and gold_prompt is not None:
                 # torch.Size([1, 77, 768]) -> (indexing 0) -> (77, 768)
                 prompt_embedding: torch.Tensor = embedding[0]
@@ -94,8 +94,10 @@ class DiffuseGameStatus:
         positive_embedding, negative_embedding = self.prompt_as_embedding(positive_prompt, negative_prompt)
 
         # -1 ~ 1
-        score_positive = get_similarity_score(positive_embedding, self.gold_positive_prompt, self.gold_positive_embedding_mean)
-        score_negative = get_similarity_score(negative_embedding, self.gold_negative_prompt, self.gold_negative_embedding_mean)
+        score_positive = get_similarity_score(positive_embedding, self.gold_positive_prompt,
+                                              self.gold_positive_embedding_mean)
+        score_negative = get_similarity_score(negative_embedding, self.gold_negative_prompt,
+                                              self.gold_negative_embedding_mean)
 
         # 0 ~ 1
         score_positive = (score_positive + 1) / 2
@@ -126,7 +128,8 @@ class DiffuseGameStatus:
             "score": score,
             "score_positive": score_positive,
             "score_negative": score_negative,
-            "left_chance": self.initial_chance - 1 if previous_submission is None else previous_submission['left_chance'] - 1
+            "left_chance": self.initial_chance - 1 if previous_submission is None else previous_submission[
+                                                                                           'left_chance'] - 1
         }
 
         if previous_submission is not None and previous_submission['score'] > submission['score']:
@@ -134,7 +137,9 @@ class DiffuseGameStatus:
         else:
             self.submissions[submitter_url] = submission
 
-        logger.info(f'game submission added by {status["account"]["acct"]} - positive score {score_positive}, negative score {score_negative}')
+        logger.info(
+            f'game submission added by {status["account"]["acct"]} '
+            f'- positive score {score_positive}, negative score {score_negative}')
 
         return submission
 

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 @dataclass
 class TootListenMsgConf:
+    toot_on_start_end: bool = True
     toot_listen_start: str = """
 #bot #bot_message
 diffusers_mastodon_bot starts!

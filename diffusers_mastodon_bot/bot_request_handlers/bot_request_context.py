@@ -37,7 +37,8 @@ class BotRequestContext:
         account = self.status['account']
         return account['url'] != self.bot_ctx.bot_acct_url
 
-    def reply_to(self, status: Dict[str, Any], body: str, tag_behind: bool = False, keep_context: bool = False, **kwargs):
+    def reply_to(self, status: Dict[str, Any], body: str, tag_behind: bool = False, keep_context: bool = False,
+                 **kwargs):
         """
         reply wrap method for easy reply
         :param status: target status to reply

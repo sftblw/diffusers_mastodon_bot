@@ -1,23 +1,13 @@
 import enum
-import io
-import io
-import json
 import logging
-import math
 import re
-import time
-from datetime import datetime
-from pathlib import Path
+from threading import Timer
 from typing import *
 
 import diffusers.pipelines
-import transformers
-from PIL.Image import Image
-import torch
-from torch import autocast
 
-from diffusers_mastodon_bot.bot_request_handlers.bot_request_handler import BotRequestHandler
 from diffusers_mastodon_bot.bot_request_handlers.bot_request_context import BotRequestContext
+from diffusers_mastodon_bot.bot_request_handlers.bot_request_handler import BotRequestHandler
 from diffusers_mastodon_bot.bot_request_handlers.diffusion_runner import DiffusionRunner
 from diffusers_mastodon_bot.bot_request_handlers.game.diffuse_game_message import DiffuseGameMessages, \
     diffusion_game_message_defaults
@@ -25,12 +15,6 @@ from diffusers_mastodon_bot.bot_request_handlers.game.diffuse_game_status import
 from diffusers_mastodon_bot.bot_request_handlers.game.diffuse_game_submission import DiffuseGameSubmission
 from diffusers_mastodon_bot.bot_request_handlers.proc_args_context import ProcArgsContext
 from diffusers_mastodon_bot.community_pipeline.lpw_stable_diffusion import get_weighted_text_embeddings
-from diffusers_mastodon_bot.utils import image_grid
-
-import statistics
-import math
-from threading import Timer
-
 
 logger = logging.getLogger(__name__)
 
@@ -48,13 +32,13 @@ class DiffuseGameHandler(BotRequestHandler):
                  pipe: diffusers.pipelines.StableDiffusionPipeline,
                  tag_name: str = 'diffuse_game',
                  response_duration_sec: float = 60 * 1,
-                 score_early_end_condition = 0.85,
+                 score_early_end_condition=0.85,
                  messages: Optional[DiffuseGameMessages] = None
                  ):
 
         self.pipe: diffusers.pipelines.StableDiffusionPipeline = pipe
         self.tag_name = tag_name
-        self.re_strip_special_token = re.compile('<\|.*?\|>')
+        self.re_strip_special_token = re.compile(r'<\|.*?\|>')
 
         self.response_duration_sec: float = response_duration_sec
 
@@ -78,13 +62,13 @@ class DiffuseGameHandler(BotRequestHandler):
 
         # reply to game
         is_reply_to_game = (
-            self.current_game is not None
-            and ctx.status.in_reply_to_id == self.current_game.status.id
+                self.current_game is not None
+                and ctx.status.in_reply_to_id == self.current_game.status.id
         )
 
         is_reply_to_game_reply = (
-            self.current_game is not None
-            and ctx.status.in_reply_to_id in self.current_game.eligible_status_ids_for_reply
+                self.current_game is not None
+                and ctx.status.in_reply_to_id in self.current_game.eligible_status_ids_for_reply
         )
 
         if is_reply_to_game or (is_reply_to_game_reply and ctx.not_from_self()):
@@ -130,7 +114,8 @@ class DiffuseGameHandler(BotRequestHandler):
         if len(this_game.submissions) == 0:
             message = self.messages['game_no_player'] + '\n\n' + answer_info
             any_ctx.reply_to(this_game.status, message[0:480],
-                             visibility=any_ctx.bot_ctx.default_visibility, spoiler_text=self.messages['game_no_player_cw'], untag=True)
+                             visibility=any_ctx.bot_ctx.default_visibility,
+                             spoiler_text=self.messages['game_no_player_cw'], untag=True)
             return
 
         scores: List[DiffuseGameSubmission] = \
@@ -161,14 +146,16 @@ class DiffuseGameHandler(BotRequestHandler):
             )
 
         response_body = response_body.strip()
-        result_status = any_ctx.mastodon.status_post(response_body[0:480], visibility=any_ctx.bot_ctx.default_visibility, in_reply_to_id=this_game.status['id'])
+        result_status = any_ctx.mastodon.status_post(response_body[0:480],
+                                                     visibility=any_ctx.bot_ctx.default_visibility,
+                                                     in_reply_to_id=this_game.status['id'])
 
         any_ctx.mastodon.status_post(
             answer_info[0:480],
             in_reply_to_id=result_status['id'],
             visibility=any_ctx.bot_ctx.default_visibility,
             spoiler_text=self.messages['answer_submission_was_by_cw'],
-            )
+        )
 
     def handle_new_game(self, ctx: BotRequestContext, args_ctx: ProcArgsContext) -> bool:
         if self.current_game is not None:
@@ -195,7 +182,7 @@ class DiffuseGameHandler(BotRequestHandler):
             DiffusionRunner.run_diffusion_and_upload(self.pipe, ctx, args_ctx)
 
         media_ids = [image_posted['id'] for image_posted in diffusion_result["images_list_posted"]]
-        if diffusion_result["has_any_nsfw"] and ctx.bot_ctx.no_image_on_any_nsfw:
+        if diffusion_result["has_any_nsfw"] and ctx.bot_ctx.image_gen_conf.no_image_on_any_nsfw:
             media_ids = None
 
         current_game_status: Dict[str, Any] = ctx.mastodon.status_post(
@@ -285,8 +272,8 @@ class DiffuseGameHandler(BotRequestHandler):
         else:
             ctx.reply_to(ctx.status,
                          self.messages['answer_submission_perfect']
-                            .replace('{score}', format_score(cur_score))
-                            .replace('{score_early_end_condition}', format_score(self.score_early_end_condition))
-            )
+                         .replace('{score}', format_score(cur_score))
+                         .replace('{score_early_end_condition}', format_score(self.score_early_end_condition))
+                         )
             self.current_game_timer.cancel()
             self.close_game(any_ctx=ctx, early_end_status=ctx.status)
