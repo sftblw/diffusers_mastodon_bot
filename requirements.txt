@@ -9,3 +9,5 @@ requests
 scipy
 accelerate
 tensorboard
+omegaconf >= 2.3.0
+fluent_compiler >= 0.3

@@ -1,0 +1,11 @@
+toot_listen_msg:
+  # send message on bot start and (hopefully when It's possible:) on end of bot running.
+  toot_on_start_end: true
+  # start, end messages
+  toot_listen_start: |
+    diffusers_mastodon_bot is stared.
+    #bot_message
+  toot_listen_start_cw:
+    this bot starts
+  toot_listen_end:
+    bot is exited
