@@ -25,6 +25,10 @@ process:
   # default img2img strength.
   strength: 0.55
 
+prompt_args:
+  # allow args.ignore_default_negative_prompt
+  allow_ignore_default_negative_prompt: false
+
 prompt:
   # negative prompt which is added by default (as a prefix of request),
   # since there is limited space on the social note in general
