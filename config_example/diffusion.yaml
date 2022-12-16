@@ -59,4 +59,4 @@ prompt:
 
   # keywords to rip out from negative prompt, as regex.
   filter_negative_regex:
-    -
+    - ''
