@@ -7,7 +7,7 @@ from .proc_args_context import ProcArgsContext
 
 class BotRequestHandler(abc.ABC):
     """
-    simple Request Handling pipeline implementaion. first comes first.
+    simple Request Handling pipeline implementation. first comes first.
     """
     @abc.abstractmethod
     def is_eligible_for(self, ctx: BotRequestContext) -> bool:
