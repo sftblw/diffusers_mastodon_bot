@@ -32,7 +32,8 @@ class ImageGenConf:
             if 1 <= (self.max_image_count / (self.image_tile_xy[0] * self.image_tile_xy[1])) <= self.image_max_attachment_count \
             else 1
 
-        if self.max_batch_process is not None and self.max_batch_process >= 2:
-            logger.warn('due to negative prompt bug in batch, it is temporary disabled. changing batch to 1... '
-                        'https://github.com/huggingface/diffusers/issues/779')
-            self.max_batch_process = 1
+        # fixed
+        # if self.max_batch_process is not None and self.max_batch_process >= 2:
+        #     logger.warn('due to negative prompt bug in batch, it is temporary disabled. changing batch to 1... '
+        #                 'https://github.com/huggingface/diffusers/issues/779')
+        #     self.max_batch_process = 1

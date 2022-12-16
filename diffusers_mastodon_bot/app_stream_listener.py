@@ -21,6 +21,7 @@ from diffusers_mastodon_bot.bot_request_handlers.proc_args_context import ProcAr
 from diffusers_mastodon_bot.conf.app.app_conf import AppConf
 from diffusers_mastodon_bot.conf.diffusion.diffusion_conf import DiffusionConf
 from diffusers_mastodon_bot.conf.message.message_conf import MessageConf
+from diffusers_mastodon_bot.locales.locale_res import LocaleRes
 from diffusers_mastodon_bot.utils import rip_out_html
 
 logger = logging.getLogger(__name__)
@@ -36,6 +37,7 @@ class AppStreamListener(mastodon.StreamListener):
             diffusion_conf: DiffusionConf,
             app_conf: AppConf,
             message_conf: MessageConf,
+            locale_res: LocaleRes,
             pipe_kwargs_info: Dict[str, Any]
     ):
         self.mastodon: Mastodon = mastodon_client
@@ -45,6 +47,7 @@ class AppStreamListener(mastodon.StreamListener):
         self.diffusion_conf = diffusion_conf
         self.app_conf = app_conf
         self.message_conf = message_conf
+        self.locale_res = locale_res
 
         self.pipe_kwargs_info = pipe_kwargs_info
 
@@ -61,6 +64,7 @@ class AppStreamListener(mastodon.StreamListener):
             bot_acct_url=mention_to_url,
             behavior_conf=self.app_conf.behavior,
             image_gen_conf=self.app_conf.image_gen,
+            locale_res=self.locale_res,
             default_visibility=app_conf.behavior.default_visibility,
             device_name=self.diffusion_conf.device
         )
@@ -85,10 +89,6 @@ class AppStreamListener(mastodon.StreamListener):
             )
 
     def on_notification(self, notification):
-        # noti_type = notification['type']
-        # if noti_type != 'mention':
-        #     return
-
         if 'status' not in notification:
             logger.info('no status found on notification')
             return

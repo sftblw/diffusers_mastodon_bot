@@ -1,0 +1,48 @@
+# message locale
+locale: 'en-US'
+
+# behavioral config
+behavior:
+  # default visibility of any toot except some situations
+  default_visibility: 'unlisted'
+
+  # save generated images on local folder
+  save_image: true
+  output_save_path: './diffused_results'
+
+  # save arguments information of generated images.
+  save_args: true
+  # save arguments information of generated images as a separate text file.
+  # This is generally not required because
+  # generated image already contains its information on metadata of PNG file. (git hash 1d132eaf)
+  save_args_text: false
+
+  # delete "processing..." message when the image is posted.
+  # Since mastodon's rate limit is harsh for status deletion, true is better in general.
+  delete_processing_message: false
+  # Attach mentions at the behind position of note content, for better discoverability.
+  tag_behind_on_image_post: true
+
+# image generation config
+image_gen:
+  # default image generation count. this is NOT attachment count, but a count of generated images.
+  image_count: 4
+  # maximum image generation count.
+  max_image_count: 16
+  # images will be tiled when number of generated images exceeds maximum count of attachment.
+  image_tile_xy: [2, 2]
+  # changes tile x and y dynamically to spread images across attachment.
+  # this is NOT recommended if you didn't modify rate limit of mastodon itself.
+  # false == prefer tiling
+  # true == spread images across attached images when it's possible
+  image_tile_auto_expand: false
+  # 4 is maximum on mastodon
+  image_max_attachment_count: 4
+
+  # simultaneous work count of image generation, as long as your GPU VRAM allows it.
+  max_batch_process: 2
+
+  # When NSFW is detected by safety checker on any generated image,
+  # the bot will not reply any image to requester.
+  # You can turn on NSFW detection on diffusion.yaml
+  no_image_on_any_nsfw: true

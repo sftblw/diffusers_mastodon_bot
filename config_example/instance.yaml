@@ -1,2 +1,4 @@
+# instance URL with https://
 endpoint_url: https://YOUR_DOMAIN.COM.ES_HERE
+# access token, generated at dev page
 access_token: YOUR_ACCESS_TOKEN_GOES_HERE

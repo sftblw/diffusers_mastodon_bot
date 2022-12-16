@@ -1,12 +1,17 @@
 # see: diffusers_mastodon_bot/model_load.py
 pipeline:
   # local path or HF model repo name. (ex: hakurei/waifu-diffusion)
-  pretrained_model_name_or_path: ./scripts/models/multi_wsum__0.05__anything_v3_0__cafe_insta_ep9__0.3__wd_v1_3
+  pretrained_model_name_or_path: stabilityai/stable-diffusion-2-1
   # git branch of repo, omittable
   revision: main
   # torch.float16 to reduce memory, or torch.float32
   torch_dtype: torch.float16
+  # consult diffusers_mastodon_bot/conf/diffusion/scheduler_kind.py
   scheduler: DPM_SOLVER_PP
+  # torch.device('cuda')
+  device_name: 'cuda'
+  # use safety checker. This is fairy false positive when a model is for anime style.
+  use_safety_checker: true
 
 process:
   # must be in multiply of 64 (if I remember it correctly).
@@ -16,6 +21,14 @@ process:
   # default inference steps, when it is not specified.
   num_inference_steps: 28
   # default guidance scale (CFG scale, maybe?), when it is not specified.
-  guidance_scale: 12.0
+  guidance_scale: 8.0
   # default img2img strength.
-  strength: 0.65
+  strength: 0.55
+
+prompt:
+  # negative prompt which is added by default (as a prefix of request),
+  # since there is limited space on the social note in general
+  default_negative_prompt: >
+    nsfw, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit,
+    fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts,
+    signature, watermark, username, blurry

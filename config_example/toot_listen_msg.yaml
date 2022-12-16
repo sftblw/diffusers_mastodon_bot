@@ -1,4 +1,0 @@
-toot_listen_start: "#bot #bot_message\ndiffusers_mastodon_bot starts!"
-toot_listen_start_cw: "bot start"
-# End message may not be fired on exit.
-toot_listen_end: "#bot #bot_message\ndiffusers_mastodon_bot ends!"
