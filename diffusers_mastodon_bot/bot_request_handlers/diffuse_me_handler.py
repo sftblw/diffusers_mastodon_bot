@@ -1,6 +1,6 @@
 import logging
 import logging
-import re
+import re2 as re
 from typing import *
 
 from diffusers_mastodon_bot.community_pipeline.lpw_stable_diffusion \

@@ -1,5 +1,7 @@
 import logging
-import re
+
+import re2
+import re2 as re
 
 import unicodedata
 from typing import *
@@ -27,16 +29,40 @@ class ParamParser:
         self.image_gen_conf = image_gen_conf
         self.prompt_conf = prompt_conf
         self.prompt_args_conf = prompt_args_conf
-        self.proc_kwargs = OmegaConf.to_container(proc_conf)
+        self.proc_kwargs = vars(proc_conf)
+
+        # https://github.com/google/re2/blob/954656f47fe8fb505d4818da1e128417a79ea500/re2/re2.h#L607-L620
+        re_options = re2.Options()
+        re_options.case_sensitive = False
+        re_options.never_capture = True
+
         self.strippers = [
-            re.compile(r'@[a-zA-Z0-9._-]+'),
-            re.compile(r'#\w+'),
-            re.compile(r'[ \r\n\t]+'),
+            re.compile(r'@[a-zA-Z0-9._-]+', options=re_options),
+            re.compile(r'#\w+', options=re_options),
+            re.compile(r'[ \r\n\t]+', options=re_options),
         ]
 
+        self.many_space_regex = re.compile(r'\W+', options=re_options)
+
+        self.positive_filter = re.compile('|'.join([
+            pattern.strip()
+            for pattern in self.prompt_conf.filter_positive_regex
+            if len(pattern.strip()) > 0
+        ]), options=re_options)
+
+        self.negative_filter = re.compile('|'.join([
+            pattern.strip()
+            for pattern in self.prompt_conf.filter_negative_regex
+            if len(pattern.strip()) > 0
+        ]), options=re_options)
+
+        self.replace_positive: List[Tuple[Any, str]] = []
+        for pattern_and_value in self.prompt_conf.replace_positive_regex:
+            pattern, value = pattern_and_value.split('->')
+            self.replace_positive.append((re.compile(pattern.strip(), options=re_options), value.strip()))
+
     def process_common_params(self, html_content: str):
-        prompt_conf = self.prompt_conf
-        proc_kwargs = self.proc_kwargs.clone()
+        proc_kwargs = self.proc_kwargs.copy()
 
         content_txt = self.extract_and_normalize(html_content)
 
@@ -51,8 +77,15 @@ class ParamParser:
             content_txt, proc_kwargs
         )
 
-        logger.info(f'text (after argparse) : {content_txt}')
-        logger.info(f'text negative (after argparse) : {content_txt_negative}')
+        logger.info(f'positive: (after argparse) : {content_txt}')
+        logger.info(f'negative: (after argparse) : {content_txt_negative}')
+
+        content_txt = self.filter_replace_positive(content_txt)
+        content_txt_negative = self.filter_replace_negative(content_txt_negative)
+        content_txt_negative_with_default = self.filter_replace_negative(content_txt_negative_with_default)
+
+        logger.info(f'positive: (after filter) : {content_txt}')
+        logger.info(f'negative: (after filter) : {content_txt_negative}')
 
         prompts = {
             "positive": content_txt,
@@ -155,3 +188,21 @@ class ParamParser:
         content_txt = unicodedata.normalize('NFC', content_txt)
         logger.info(f'text (strip out) : {content_txt}')
         return content_txt
+
+    def filter_replace_positive(self, prompt: str) -> str:
+        for pattern, replace in self.replace_positive:
+            prompt = pattern.sub(replace, prompt)
+
+        prompt = self.positive_filter.sub('', prompt)
+        prompt = self.many_space_regex.sub(' ', prompt)
+
+        return prompt.strip()
+
+    def filter_replace_negative(self, prompt: Optional[str]) -> Optional[str]:
+        if prompt is None:
+            return None
+
+        prompt = self.negative_filter.sub('', prompt)
+        prompt = self.many_space_regex.sub(' ', prompt)
+
+        return prompt.strip()

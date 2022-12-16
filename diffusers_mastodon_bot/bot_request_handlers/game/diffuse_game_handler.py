@@ -1,6 +1,6 @@
 import enum
 import logging
-import re
+import re2 as re
 from threading import Timer
 from typing import *
 

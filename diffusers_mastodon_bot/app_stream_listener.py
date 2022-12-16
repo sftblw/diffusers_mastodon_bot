@@ -2,7 +2,7 @@ import logging
 from typing import *
 
 import atexit
-import re
+import re2 as re
 from pathlib import Path
 from enum import Enum
 

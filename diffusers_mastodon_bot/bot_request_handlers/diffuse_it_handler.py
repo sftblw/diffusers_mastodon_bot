@@ -1,6 +1,6 @@
 import logging
 import logging
-import re
+import re2 as re
 import traceback
 from io import BytesIO
 from typing import *

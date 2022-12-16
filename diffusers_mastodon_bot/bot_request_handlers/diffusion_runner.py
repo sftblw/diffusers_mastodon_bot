@@ -3,7 +3,7 @@ import io
 import json
 import logging
 import math
-import re
+import re2 as re
 import time
 import traceback
 from datetime import datetime

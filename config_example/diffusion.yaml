@@ -33,6 +33,30 @@ prompt:
   # negative prompt which is added by default (as a prefix of request),
   # since there is limited space on the social note in general
   default_negative_prompt: >
-    nsfw, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit,
+    nsfw, lewd, hentai, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit,
     fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts,
     signature, watermark, username, blurry
+
+  # keywords to filter out from positive, as regex.
+  # for complex regex, do not use quote
+  # https://stackoverflow.com/a/6915906/4394750
+  filter_positive_regex:
+    - 'nsfw'
+    - 'sex'
+    - 'penis'
+    - 'vagina'
+    - 'pussy'
+    - 'lewd'
+    - 'hentai'
+    - (^|\b)erect\W*?nipples?($|\b)
+    - (^|\b)vore($|\b)
+    - bukk?ake
+    - no pantsu?
+
+  # keywords to replace at positive regex.
+  replace_positive_regex:
+    - 'topless -> bare shoulders'
+
+  # keywords to rip out from negative prompt, as regex.
+  filter_negative_regex:
+    -
