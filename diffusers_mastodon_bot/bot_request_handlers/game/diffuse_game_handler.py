@@ -212,8 +212,14 @@ class DiffuseGameHandler(BotRequestHandler):
         self.current_game_timer = Timer(self.response_duration_sec, self.close_game, args=[ctx])
         self.current_game_timer.start()
 
-        ctx.reply_to(in_progress_status, self.messages['new_game_start_success']()
+        behavior_conf = ctx.bot_ctx.behavior_conf
+        reply_target_status = ctx.status if behavior_conf.delete_processing_message else in_progress_status
+
+        ctx.reply_to(reply_target_status, self.messages['new_game_start_success']()
                      + '\n\n' + self.current_game.status['url'], spoiler_text='', visibility='direct')
+
+        if behavior_conf.delete_processing_message:
+            ctx.mastodon.status_delete(in_progress_status)
 
         logger.info(f'sent')
 
