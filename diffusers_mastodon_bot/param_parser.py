@@ -42,7 +42,7 @@ class ParamParser:
             re.compile(r'[ \r\n\t]+', options=re_options),
         ]
 
-        self.many_space_regex = re.compile(r'\W+', options=re_options)
+        self.many_space_regex = re.compile(r'[ \r\n\t]+', options=re_options)
 
         self.positive_filter = re.compile('|'.join([
             pattern.strip()
