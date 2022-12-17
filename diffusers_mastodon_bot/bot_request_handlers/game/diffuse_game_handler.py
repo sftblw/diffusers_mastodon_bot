@@ -113,7 +113,7 @@ class DiffuseGameHandler(BotRequestHandler):
             message = self.messages['game_no_player']() + '\n\n' + answer_info
             any_ctx.reply_to(this_game.status, message[0:480],
                              visibility=any_ctx.bot_ctx.default_visibility,
-                             spoiler_text=self.messages['game_no_player_cw'](), untag=True)
+                             spoiler_text=self.messages['game_no_player_cw']())
             return
 
         scores: List[DiffuseGameSubmission] = \
