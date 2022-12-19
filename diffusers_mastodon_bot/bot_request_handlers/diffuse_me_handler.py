@@ -1,25 +1,23 @@
 import logging
-import logging
 import re2 as re
 from typing import *
 
-from diffusers_mastodon_bot.community_pipeline.lpw_stable_diffusion \
-    import StableDiffusionLongPromptWeightingPipeline as StableDiffusionLpw
 from .bot_request_context import BotRequestContext
 from .bot_request_handler import BotRequestHandler
-from .diffusion_runner import DiffusionRunner
+from diffusers_mastodon_bot.diffusion.diffusion_runner import DiffusionRunner
 from .proc_args_context import ProcArgsContext
+from ..diffusion.pipe_info import PipeInfo
 
 logger = logging.getLogger(__name__)
 
 
 class DiffuseMeHandler(BotRequestHandler):
     def __init__(self,
-                 pipe: StableDiffusionLpw,
+                 pipe_info: PipeInfo,
                  tag_name: str = 'diffuse_me',
                  allow_self_request_only: bool = False
                  ):
-        self.pipe = pipe
+        self.pipe_info = pipe_info
         self.tag_name = tag_name
         self.allow_self_request_only = allow_self_request_only
         self.re_strip_special_token = re.compile(r'<\|.*?\|>')
@@ -46,7 +44,8 @@ class DiffuseMeHandler(BotRequestHandler):
                 and args_ctx.proc_kwargs['num_inference_steps'] is not None:
             args_ctx.proc_kwargs['num_inference_steps'] = int(args_ctx.proc_kwargs['num_inference_steps'])
 
-        diffusion_result: DiffusionRunner.Result = DiffusionRunner.run_diffusion_and_upload(self.pipe, ctx, args_ctx)
+        diffusion_result: DiffusionRunner.Result = \
+            DiffusionRunner.run_diffusion_and_upload(self.pipe_info, ctx, args_ctx)
 
         logger.info(f'building reply text')
 

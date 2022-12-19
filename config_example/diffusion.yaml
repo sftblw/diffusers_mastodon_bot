@@ -60,3 +60,10 @@ prompt:
   # keywords to rip out from negative prompt, as regex.
   filter_negative_regex:
     - ''
+
+embeddings:
+  # whether extra embeddings are loaded or not
+  load_embeddings: true
+  # embeddings directory
+  embeddings_path: 'embeddings'
+  prefix: ''

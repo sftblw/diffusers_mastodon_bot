@@ -1,4 +1,6 @@
 scripts
+embeddings
+!embeddings/.gitkeep
 
 venv
 venv_*

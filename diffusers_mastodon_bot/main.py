@@ -20,8 +20,7 @@ from diffusers_mastodon_bot.conf.diffusion.diffusion_conf import DiffusionConf
 from diffusers_mastodon_bot.conf.message.message_conf import MessageConf
 from diffusers_mastodon_bot.locales.locale_res import LocaleRes
 
-from diffusers_mastodon_bot.model_load import create_diffusers_pipeline
-
+from diffusers_mastodon_bot.diffusion.model_load import ModelLoader
 
 logger = logging.getLogger(__name__)
 
@@ -78,21 +77,21 @@ def main():
     logger.info(f'you are, acct: {my_acct} / url: {my_url}')
 
     logger.info('loading model')
-    pipe, pipe_kwargs_info = create_diffusers_pipeline(pipe_conf)
+    pipe_info = ModelLoader.load(pipe_conf, diffusion_conf.embeddings)
 
     logger.info('creating handlers')
 
     req_handlers: List[BotRequestHandler] = [
         DiffuseMeHandler(
-            pipe=pipe,
+            pipe_info=pipe_info,
             tag_name="diffuse_me",
         ),
         DiffuseItHandler(
-            pipe=pipe,
+            pipe_info=pipe_info,
             tag_name='diffuse_it'
         ),
         DiffuseGameHandler(
-            pipe=pipe,
+            pipe_info=pipe_info,
             tag_name='diffuse_game',
             messages=locale_res.diffusion_game,  # type: ignore
             response_duration_sec=60 * 30
@@ -102,14 +101,13 @@ def main():
     logger.info('creating listener')
     listener = AppStreamListener(
         mastodon_client=mastodon,
-        diffusers_pipeline=pipe,
         mention_to_url=my_url,
         req_handlers=req_handlers,
         diffusion_conf=diffusion_conf,
         app_conf=app_conf,
         message_conf=msg_conf,
         locale_res=locale_res,
-        pipe_kwargs_info=pipe_kwargs_info
+        pipe_kwargs_info=pipe_info.pipe_kwargs_info
     )
 
     mastodon.stream_user(listener, run_async=False, timeout=10000)

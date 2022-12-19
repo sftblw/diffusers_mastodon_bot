@@ -4,15 +4,14 @@ import re2 as re
 from threading import Timer
 from typing import *
 
-import diffusers.pipelines
-
 from diffusers_mastodon_bot.bot_request_handlers.bot_request_context import BotRequestContext
 from diffusers_mastodon_bot.bot_request_handlers.bot_request_handler import BotRequestHandler
-from diffusers_mastodon_bot.bot_request_handlers.diffusion_runner import DiffusionRunner
+from diffusers_mastodon_bot.diffusion.diffusion_runner import DiffusionRunner
 from diffusers_mastodon_bot.bot_request_handlers.game.diffuse_game_status import DiffuseGameStatus
 from diffusers_mastodon_bot.bot_request_handlers.game.diffuse_game_submission import DiffuseGameSubmission
 from diffusers_mastodon_bot.bot_request_handlers.proc_args_context import ProcArgsContext
 from diffusers_mastodon_bot.community_pipeline.lpw_stable_diffusion import get_weighted_text_embeddings
+from diffusers_mastodon_bot.diffusion.pipe_info import PipeInfo
 from diffusers_mastodon_bot.locales.locale_data import LocaleData
 
 logger = logging.getLogger(__name__)
@@ -28,14 +27,14 @@ class DiffuseGameHandler(BotRequestHandler):
         AnswerSubmission = 2
 
     def __init__(self,
-                 pipe: diffusers.pipelines.StableDiffusionPipeline,
+                 pipe_info: PipeInfo,
                  tag_name: str = 'diffuse_game',
                  response_duration_sec: float = 60 * 1,
                  score_early_end_condition=0.85,
                  messages: LocaleData = LocaleData('en-US', [])
                  ):
 
-        self.pipe: diffusers.pipelines.StableDiffusionPipeline = pipe
+        self.pipe_info: PipeInfo = pipe_info
         self.tag_name = tag_name
         self.re_strip_special_token = re.compile(r'<\|.*?\|>')
 
@@ -177,7 +176,7 @@ class DiffuseGameHandler(BotRequestHandler):
         )
 
         diffusion_result: DiffusionRunner.Result = \
-            DiffusionRunner.run_diffusion_and_upload(self.pipe, ctx, args_ctx)
+            DiffusionRunner.run_diffusion_and_upload(self.pipe_info, ctx, args_ctx)
 
         media_ids = [image_posted['id'] for image_posted in diffusion_result["images_list_posted"]]
         if diffusion_result["has_any_nsfw"] and ctx.bot_ctx.image_gen_conf.no_image_on_any_nsfw:
@@ -192,10 +191,13 @@ class DiffuseGameHandler(BotRequestHandler):
         )
 
         def calc_weighted_embeddings(positive: str, negative: Optional[str]):
+            positive_with_custom_vocab = self.pipe_info.custom_token_helper.apply_custom_multiple_tokens(positive)
+            negative_with_custom_vocab = self.pipe_info.custom_token_helper.apply_custom_multiple_tokens(negative)
+
             text_embeddings, uncond_embeddings = get_weighted_text_embeddings(
-                pipe=self.pipe,
-                prompt=positive,
-                uncond_prompt=negative,
+                pipe=self.pipe_info.pipe,
+                prompt=positive_with_custom_vocab,
+                uncond_prompt=negative_with_custom_vocab,
                 max_embeddings_multiples=3,
             )
             return text_embeddings, uncond_embeddings

@@ -1,5 +1,4 @@
 import io
-import io
 import json
 import logging
 import math
@@ -13,16 +12,17 @@ from typing import *
 import PIL
 import PIL.Image
 import PIL.PngImagePlugin
-import diffusers.pipelines
 import torch
 from transformers import CLIPTokenizer, CLIPTextModel
 from transformers.modeling_outputs import BaseModelOutputWithPooling
 
 from diffusers_mastodon_bot.community_pipeline.lpw_stable_diffusion \
     import StableDiffusionLongPromptWeightingPipeline as StableDiffusionLpw
-from .bot_request_context import BotRequestContext
-from .proc_args_context import ProcArgsContext
-from ..utils import image_grid
+from diffusers_mastodon_bot.bot_request_handlers.bot_request_context import BotRequestContext
+from diffusers_mastodon_bot.bot_request_handlers.proc_args_context import ProcArgsContext
+from diffusers_mastodon_bot.diffusion.pipe_info import PipeInfo
+from diffusers_mastodon_bot.utils import image_grid
+
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +101,7 @@ class DiffusionRunner:
     def run_sth_and_upload(
             ctx: BotRequestContext,
             args_ctx: ProcArgsContext,
-            pipe: Any,
+            pipe_info: PipeInfo,
             filename_root: str,
             run_diffusion_fn: Callable,
             run_diffusion_fn_kwargs: Dict['str', Any] = {},
@@ -116,7 +116,7 @@ class DiffusionRunner:
 
         start_time = time.time()
 
-        generated_images_raw_pil, has_any_nsfw = run_diffusion_fn(ctx, args_ctx, pipe, **run_diffusion_fn_kwargs)
+        generated_images_raw_pil, has_any_nsfw = run_diffusion_fn(ctx, args_ctx, pipe_info, **run_diffusion_fn_kwargs)
         result["has_any_nsfw"] = has_any_nsfw
 
         end_time = time.time()
@@ -141,19 +141,19 @@ class DiffusionRunner:
         return result
 
     @staticmethod
-    def run_diffusion_and_upload(pipe: diffusers.pipelines.StableDiffusionPipeline,
+    def run_diffusion_and_upload(pipe_info: PipeInfo,
                                  ctx: BotRequestContext,
                                  args_ctx: ProcArgsContext) -> Result:
         return DiffusionRunner.run_sth_and_upload(
             ctx,
             args_ctx,
-            pipe,
+            pipe_info,
             filename_root=datetime.now().strftime('%Y-%m-%d_%H-%M-%S_sd'),
             run_diffusion_fn=DiffusionRunner.run_diffusion,
         )
 
     @staticmethod
-    def run_diffusion(ctx, args_ctx, pipe: StableDiffusionLpw) -> Tuple[List[PIL.Image.Image], bool]:
+    def run_diffusion(ctx, args_ctx, pipe_info: PipeInfo) -> Tuple[List[PIL.Image.Image], bool]:
         left_images_count = args_ctx.target_image_count
         generated_images_raw_pil = []
         has_any_nsfw = False
@@ -170,16 +170,21 @@ class DiffusionRunner:
 
         image_gen_conf = ctx.bot_ctx.image_gen_conf
 
+        positive_prompt = pipe_info.custom_token_helper.apply_custom_multiple_tokens(args_ctx.prompts['positive'])
+        negative_prompt = pipe_info.custom_token_helper\
+            .apply_custom_multiple_tokens(args_ctx.prompts['negative_with_default'])
+
         while left_images_count > 0:
             cur_process_count = min(image_gen_conf.max_batch_process, left_images_count)
             logger.info(
                 f"processing {args_ctx.target_image_count - left_images_count + 1} of {args_ctx.target_image_count}, "
                 + f"by {cur_process_count}")
 
+            pipe: StableDiffusionLpw = pipe_info.pipe
             pipe_results = pipe.text2img(
-                [args_ctx.prompts['positive']] * cur_process_count,
-                negative_prompt=([args_ctx.prompts['negative_with_default']] * cur_process_count
-                                 if args_ctx.prompts['negative_with_default'] is not None
+                [positive_prompt] * cur_process_count,
+                negative_prompt=([negative_prompt] * cur_process_count
+                                 if negative_prompt is not None
                                  else None),
                 **manual_proc_kwargs
             )
@@ -193,7 +198,7 @@ class DiffusionRunner:
         return generated_images_raw_pil, has_any_nsfw
 
     @staticmethod
-    def run_img2img_and_upload(pipe: diffusers.pipelines.StableDiffusionImg2ImgPipeline,
+    def run_img2img_and_upload(pipe_info: PipeInfo,
                                ctx: BotRequestContext,
                                args_ctx: ProcArgsContext,
                                init_image: PIL.Image.Image,
@@ -204,7 +209,7 @@ class DiffusionRunner:
         result = DiffusionRunner.run_sth_and_upload(
             ctx,
             args_ctx,
-            pipe,
+            pipe_info,
             filename_root=filename_root,
             run_diffusion_fn=DiffusionRunner.run_img2img,
             run_diffusion_fn_kwargs={
@@ -227,7 +232,7 @@ class DiffusionRunner:
         return result
 
     @staticmethod
-    def run_img2img(ctx, args_ctx, pipe: StableDiffusionLpw, init_image: PIL.Image.Image,
+    def run_img2img(ctx, args_ctx, pipe_info: PipeInfo, init_image: PIL.Image.Image,
                     generator: Optional[torch.Generator] = None) -> Tuple[List[PIL.Image.Image], bool]:
         left_images_count = args_ctx.target_image_count
         generated_images_raw_pil = []
@@ -249,17 +254,22 @@ class DiffusionRunner:
 
         image_gen_conf = ctx.bot_ctx.image_gen_conf
 
+        positive_prompt = pipe_info.custom_token_helper.apply_custom_multiple_tokens(args_ctx.prompts['positive'])
+        negative_prompt = pipe_info.custom_token_helper\
+            .apply_custom_multiple_tokens(args_ctx.prompts['negative_with_default'])
+
         while left_images_count > 0:
             cur_process_count = min(image_gen_conf.max_batch_process, left_images_count)
             logger.info(
                 f"processing {args_ctx.target_image_count - left_images_count + 1} of {args_ctx.target_image_count}, "
                 + f"by {cur_process_count}")
 
+            pipe: StableDiffusionLpw = pipe_info.pipe
             pipe_results = pipe.img2img(
                 image=init_image,
-                prompt=[args_ctx.prompts['positive']] * cur_process_count,
-                negative_prompt=([args_ctx.prompts['negative_with_default']] * cur_process_count
-                                 if args_ctx.prompts['negative_with_default'] is not None
+                prompt=[positive_prompt] * cur_process_count,
+                negative_prompt=([negative_prompt] * cur_process_count
+                                 if negative_prompt is not None
                                  else None),
                 generator=generator,
                 **manual_proc_kwargs

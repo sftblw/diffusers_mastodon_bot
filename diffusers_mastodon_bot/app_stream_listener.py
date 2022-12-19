@@ -2,13 +2,11 @@ import logging
 from typing import *
 
 import atexit
-import re2 as re
 from pathlib import Path
 from enum import Enum
 
 import traceback
 
-import diffusers.pipelines
 import mastodon
 from mastodon import Mastodon
 
@@ -20,7 +18,7 @@ from diffusers_mastodon_bot.conf.app.app_conf import AppConf
 from diffusers_mastodon_bot.conf.diffusion.diffusion_conf import DiffusionConf
 from diffusers_mastodon_bot.conf.message.message_conf import MessageConf
 from diffusers_mastodon_bot.locales.locale_res import LocaleRes
-from diffusers_mastodon_bot.param_parser import ParamParser
+from diffusers_mastodon_bot.diffusion.param_parser import ParamParser
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +27,6 @@ class AppStreamListener(mastodon.StreamListener):
     def __init__(
             self,
             mastodon_client,
-            diffusers_pipeline: diffusers.pipelines.StableDiffusionPipeline,
             mention_to_url: str,
             req_handlers: List[BotRequestHandler],
             diffusion_conf: DiffusionConf,
@@ -40,7 +37,6 @@ class AppStreamListener(mastodon.StreamListener):
     ):
         self.mastodon: Mastodon = mastodon_client
         self.mention_to_url = mention_to_url
-        self.diffusers_pipeline: diffusers.pipelines.StableDiffusionPipeline = diffusers_pipeline
 
         self.diffusion_conf = diffusion_conf
         self.app_conf = app_conf
