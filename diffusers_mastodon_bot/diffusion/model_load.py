@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 def _enable_xformers(pipe: StableDiffusionLpw):
     if is_xformers_available():
         try:
-            pipe.unet.enable_xformers_memory_efficient_attention(True)
+            pipe.unet.enable_xformers_memory_efficient_attention()
         except Exception as e:
             logger.warning(
                 "Could not enable memory efficient attention. Make sure xformers is installed"
