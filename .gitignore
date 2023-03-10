@@ -2,6 +2,8 @@ scripts
 embeddings
 !embeddings/.gitkeep
 
+models
+
 venv
 venv_*
 

@@ -4,21 +4,15 @@ a quick and dirty bot, running stable diffuser, via huggingface diffusers
 
 ## prepare & run
 
-- virtualenv (or conda, I recommend [micromamba](https://github.com/mamba-org/mamba))
-- install pytorch, via pip, enabling nvidia
-- `pip install -r requirements.txt`
-  - (You can remove optional dependencies from there)
+- conda or mamba installed, recommendation: [micromamba](https://github.com/mamba-org/mamba)
+- `mamba env create -f environment.yaml -p ./condaenv` (replace mamba to conda if you installed conda)
+  - when updating: `mamba env update -f environment.yaml -p ./condaenv`
 - `huggingface-cli login` (see hf diffusers)
 - create app from account setting, fill these text files
   - minimal: `config/instance.yaml`
     - see `config_example`
     - missing config becomes default, see [`diffusers_mastodon_bot/conf`](./diffusers_mastodon_bot/conf)
 - `python -m diffusers_mastodon_bot.main`
-- optional things for performance:
-  - install `accelerate`
-  - install `xformers`
-    - On linux with conda(or mamba), it's easy to install
-    - On Windows, [see this](https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/2103)   
 
 ## features
 
