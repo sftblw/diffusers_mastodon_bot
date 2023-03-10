@@ -33,9 +33,13 @@ prompt:
   # negative prompt which is added by default (as a prefix of request),
   # since there is limited space on the social note in general
   default_negative_prompt: >
-    nsfw, lewd, hentai, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit,
-    fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts,
-    signature, watermark, username, blurry
+    ((nsfw)), ((lewd)), lowres, ((bad anatomy)), ((bad hands)), text, missing finger,
+    extra digits, fewer digits, blurry, ((mutated hands and fingers)), (poorly drawn face),
+    ((mutation)), ((deformed face)), (ugly), ((bad proportions)), ((extra limbs)),
+    extra face, (double head), (extra head), ((extra feet)), monster, logo, cropped,
+    worst quality, jpeg, humpbacked, long body, long neck, ((jpeg artifacts)), deleted,
+    old, oldest, ((censored)), ((bad aesthetic)), (mosaic censoring, bar censor, blur censor),
+    signature, watermark
 
   # keywords to filter out from positive, as regex.
   # for complex regex, do not use quote

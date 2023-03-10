@@ -11,3 +11,4 @@ class SchedulerKind(Enum):
     EULER = schedulers.EulerDiscreteScheduler
     DPM_SOLVER = schedulers.DPMSolverSinglestepScheduler
     DPM_SOLVER_PP = schedulers.DPMSolverMultistepScheduler
+    DEIS_MULTISTEP = schedulers.DEISMultistepScheduler  # diffusers v0.12.0

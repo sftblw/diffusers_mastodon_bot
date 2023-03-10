@@ -12,3 +12,4 @@ class PipelineConf:
     scheduler: SchedulerKind = SchedulerKind.DPM_SOLVER_PP
     device_name: str = 'cuda'
     use_safety_checker: bool = True
+    vae_enable_tiling: bool = True

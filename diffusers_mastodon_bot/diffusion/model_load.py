@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import *
 
 from diffusers.utils.import_utils import is_xformers_available
+from diffusers import AutoencoderKL
 
 import torch
 from transformers import CLIPTextModel, CLIPTokenizer
@@ -48,6 +49,10 @@ def _create_diffusers_pipeline(conf: PipelineConf) -> Tuple[StableDiffusionLpw, 
 
     pipe = pipe.to(conf.device_name)
     pipe.enable_attention_slicing()
+    
+    if conf.vae_enable_tiling:
+        vae: AutoencoderKL = pipe.vae
+        vae.enable_tiling()
 
     pipe_kwargs_info = pipe_kwargs.copy()
 
