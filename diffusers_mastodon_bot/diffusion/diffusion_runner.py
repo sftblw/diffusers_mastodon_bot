@@ -265,7 +265,8 @@ class DiffusionRunner:
                 + f"by {cur_process_count}")
 
             pipe: StableDiffusionLpw = pipe_info.pipe
-            pipe_results = pipe.img2img(
+
+            pipe_results = pipe(
                 image=init_image,
                 prompt=[positive_prompt] * cur_process_count,
                 negative_prompt=([negative_prompt] * cur_process_count
