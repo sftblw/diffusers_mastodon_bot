@@ -5,7 +5,7 @@ channels:
 dependencies:
   - python>=3.9,<3.10
   # torch
-  - pytorch>=1.13.1
+  - pytorch>=1.13,<2
   - pytorch-cuda=11.7
   # pip
   - pip
