@@ -40,6 +40,7 @@ def _create_diffusers_pipeline(conf: PipelineConf) -> Tuple[StableDiffusionLpw, 
 
     if conf.use_safety_checker:
         pipe_kwargs['safety_checker'] = None
+        pipe_kwargs['requires_safety_checker'] = False
     if conf.revision is not None:
         pipe_kwargs['revision'] = conf.revision
 
