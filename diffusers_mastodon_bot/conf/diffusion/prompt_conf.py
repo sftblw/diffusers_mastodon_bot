@@ -4,6 +4,8 @@ from typing import *
 
 @dataclass
 class PromptConf:
+    default_positive_prompt: Optional[str] = None
+
     default_negative_prompt: str = \
         "nsfw, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit," \
         " fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, " \

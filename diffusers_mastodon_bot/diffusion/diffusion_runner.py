@@ -153,7 +153,8 @@ class DiffusionRunner:
         )
 
     @staticmethod
-    def run_diffusion(ctx, args_ctx, pipe_info: PipeInfo) -> Tuple[List[PIL.Image.Image], bool]:
+    def run_diffusion(ctx: BotRequestContext, args_ctx: ProcArgsContext, pipe_info: PipeInfo) \
+            -> Tuple[List[PIL.Image.Image], bool]:
         left_images_count = args_ctx.target_image_count
         generated_images_raw_pil = []
         has_any_nsfw = False
@@ -170,7 +171,10 @@ class DiffusionRunner:
 
         image_gen_conf = ctx.bot_ctx.image_gen_conf
 
-        positive_prompt = pipe_info.custom_token_helper.apply_custom_multiple_tokens(args_ctx.prompts['positive'])
+        positive_prompt = pipe_info.custom_token_helper\
+            .apply_custom_multiple_tokens(args_ctx.prompts['positive_with_default'])
+        assert positive_prompt is not None
+
         negative_prompt = pipe_info.custom_token_helper\
             .apply_custom_multiple_tokens(args_ctx.prompts['negative_with_default'])
 
@@ -232,7 +236,7 @@ class DiffusionRunner:
         return result
 
     @staticmethod
-    def run_img2img(ctx, args_ctx, pipe_info: PipeInfo, init_image: PIL.Image.Image,
+    def run_img2img(ctx, args_ctx: ProcArgsContext, pipe_info: PipeInfo, init_image: PIL.Image.Image,
                     generator: Optional[torch.Generator] = None) -> Tuple[List[PIL.Image.Image], bool]:
         left_images_count = args_ctx.target_image_count
         generated_images_raw_pil = []
@@ -254,7 +258,10 @@ class DiffusionRunner:
 
         image_gen_conf = ctx.bot_ctx.image_gen_conf
 
-        positive_prompt = pipe_info.custom_token_helper.apply_custom_multiple_tokens(args_ctx.prompts['positive'])
+        positive_prompt = pipe_info.custom_token_helper\
+            .apply_custom_multiple_tokens(args_ctx.prompts['positive_with_default'])
+        assert positive_prompt is not None
+
         negative_prompt = pipe_info.custom_token_helper\
             .apply_custom_multiple_tokens(args_ctx.prompts['negative_with_default'])
 

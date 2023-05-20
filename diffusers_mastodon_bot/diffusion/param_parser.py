@@ -7,6 +7,7 @@ import unicodedata
 from typing import *
 
 from omegaconf import OmegaConf
+from diffusers_mastodon_bot.bot_request_handlers.proc_args_context import Prompts
 
 from diffusers_mastodon_bot.conf.app.image_gen_conf import ImageGenConf
 from diffusers_mastodon_bot.conf.diffusion.process_conf import ProcessConf
@@ -73,89 +74,121 @@ class ParamParser:
         if 'height' not in proc_kwargs:
             proc_kwargs['height'] = 512
 
-        content_txt, content_txt_negative, content_txt_negative_with_default, target_image_count = self.parse_args(
-            content_txt, proc_kwargs
-        )
+        content_txt_positive, content_txt_positive_with_default, \
+            content_txt_negative, content_txt_negative_with_default, \
+            target_image_count \
+                = self.parse_args(content_txt, proc_kwargs)
 
-        logger.info(f'positive: (after argparse) : {content_txt}')
+        del content_txt
+
+        logger.info(f'positive: (after argparse) : {content_txt_positive}')
         logger.info(f'negative: (after argparse) : {content_txt_negative}')
 
-        content_txt = self.filter_replace_positive(content_txt)
+        content_txt_positive = self.filter_replace_positive(content_txt_positive)
+        content_txt_positive_with_default = self.filter_replace_positive(content_txt_positive_with_default)
         content_txt_negative = self.filter_replace_negative(content_txt_negative)
         content_txt_negative_with_default = self.filter_replace_negative(content_txt_negative_with_default)
 
-        logger.info(f'positive: (after filter) : {content_txt}')
+        logger.info(f'positive: (after filter) : {content_txt_positive}')
         logger.info(f'negative: (after filter) : {content_txt_negative}')
 
-        prompts = {
-            "positive": content_txt,
+        prompts: Prompts = {
+            "positive": content_txt_positive,
+            "positive_with_default": content_txt_positive_with_default,
             "negative": content_txt_negative,
             "negative_with_default": content_txt_negative_with_default
         }
 
         return prompts, proc_kwargs, target_image_count
 
-    def parse_args(self, content_txt, proc_kwargs: Dict[str, Any]):
+    def parse_args(self, content_txt: str, proc_kwargs: Dict[str, Any]):
         # param parsing
         tokens = [tok.strip() for tok in content_txt.split(' ')]
-        before_args_name = None
 
         new_content_txt = ''
 
         target_image_count = self.image_gen_conf.image_count
+        
+        ignore_default_positive_prompt = False
         ignore_default_negative_prompt = False
-        for tok in tokens:
+
+        tok_idx = 0
+        while tok_idx < len(tokens):
+            tok = tokens[tok_idx]
+            tok_idx += 1
+
+            def pop_value() -> Optional[str]:
+                nonlocal tok_idx
+                nonlocal tokens
+                args_value = tokens[tok_idx] if tok_idx < len(tokens) else None
+                tok_idx += 1
+                return args_value
+            
+            # parse "args." token
             if tok.startswith('args.'):
                 args_name = tok[5:]
 
-                if args_name == 'ignore_default_negative_prompt':
+                if args_name == 'ignore_default_positive_prompt':
+                    if self.prompt_args_conf.allow_ignore_default_positive_prompt:
+                        ignore_default_positive_prompt = True
+
+                elif args_name == 'ignore_default_negative_prompt':
                     if self.prompt_args_conf.allow_ignore_default_negative_prompt:
                         ignore_default_negative_prompt = True
-                else:
-                    before_args_name = args_name
-                continue
+            
+                elif args_name == 'orientation':
+                    if (arg1 := pop_value()) is None: continue
 
-            if before_args_name is not None:
-                args_value = tok
-
-                if before_args_name == 'orientation':
                     if (
-                            args_value == 'landscape' and proc_kwargs['width'] < proc_kwargs['height']
-                            or args_value == 'portrait' and proc_kwargs['width'] > proc_kwargs['height']
+                            arg1 == 'landscape' and proc_kwargs['width'] < proc_kwargs['height']
+                            or arg1 == 'portrait' and proc_kwargs['width'] > proc_kwargs['height']
                     ):
                         width_backup = proc_kwargs['width']
                         proc_kwargs['width'] = proc_kwargs['height']
                         proc_kwargs['height'] = width_backup
-                    if args_value == 'square':
+                        
+                    if arg1 == 'square':
                         proc_kwargs['width'] = min(proc_kwargs['width'], proc_kwargs['height'])
                         proc_kwargs['height'] = min(proc_kwargs['width'], proc_kwargs['height'])
 
-                elif before_args_name == 'image_count':
-                    if 1 <= int(args_value) <= self.image_gen_conf.max_image_count:
-                        target_image_count = int(args_value)
+                elif args_name == 'image_count':
+                    if (arg1 := pop_value()) is None: continue
 
-                elif before_args_name in ['num_inference_steps']:
-                    proc_kwargs[before_args_name] = min(int(args_value), 100)
+                    if 1 <= int(arg1) <= self.image_gen_conf.max_image_count:
+                        target_image_count = int(arg1)
 
-                elif before_args_name in ['guidance_scale']:
-                    proc_kwargs[before_args_name] = min(float(args_value), 100.0)
+                elif args_name in ['num_inference_steps']:
+                    if (arg1 := pop_value()) is None: continue
 
-                elif before_args_name in ['strength']:
+                    proc_kwargs[args_name] = min(int(arg1), 100)
+
+                elif args_name in ['guidance_scale']:
+                    if (arg1 := pop_value()) is None: continue
+
+                    proc_kwargs[args_name] = min(float(arg1), 100.0)
+
+                elif args_name in ['strength']:
+                    if (arg1 := pop_value()) is None: continue
+
                     actual_value = None
-                    if args_value.strip() == 'low':
+                    if arg1.strip() == 'low':
                         actual_value = 0.35
-                    elif args_value.strip() == 'medium':
+                    elif arg1.strip() == 'medium':
                         actual_value = 0.65
-                    elif args_value.strip() == 'high':
+                    elif arg1.strip() == 'high':
                         actual_value = 0.8
                     else:
-                        actual_value = max(min(float(args_value), 1.0), 0.0)
-                    proc_kwargs[before_args_name] = actual_value
+                        actual_value = max(min(float(arg1), 1.0), 0.0)
 
-                before_args_name = None
-                continue
+                    proc_kwargs[args_name] = actual_value
+                
+                # args parsed: continue.
+                continue      
 
+            # not a args part
             new_content_txt += ' ' + tok
+
+        # loop ends.
 
         if target_image_count > self.image_gen_conf.max_image_count:
             target_image_count = self.image_gen_conf.max_image_count
@@ -167,17 +200,39 @@ class ParamParser:
             content_txt_split = content_txt.split('sep.negative')
             content_txt = content_txt_split[0]
             content_txt_negative = ' '.join(content_txt_split[1:]).strip() if len(content_txt_split) >= 2 else None
+        
+        content_txt_positive = content_txt
+        del content_txt
 
+        content_txt_positive_with_default = content_txt_positive
         content_txt_negative_with_default = content_txt_negative
 
-        if self.prompt_conf.default_negative_prompt is not None and not ignore_default_negative_prompt:
+        def has_some_text(value: Optional[str]):
+            if value is None: return False
+            elif len(value.strip()) == 0: return False
+            return True
+
+        if has_some_text(self.prompt_conf.default_positive_prompt) \
+            and not ignore_default_positive_prompt:
+            
+            content_txt_positive_with_default = (
+                content_txt_positive
+                if content_txt_positive is not None
+                else f'{self.prompt_conf.default_positive_prompt} {content_txt_positive}'
+            ).strip()
+
+        if has_some_text(self.prompt_conf.default_negative_prompt) \
+            and not ignore_default_negative_prompt:
+            
             content_txt_negative_with_default = (
                 content_txt_negative
                 if content_txt_negative is not None
-                else '' + ' ' + self.prompt_conf.default_negative_prompt
+                else f'{self.prompt_conf.default_negative_prompt} {content_txt_negative}'
             ).strip()
 
-        return content_txt, content_txt_negative, content_txt_negative_with_default, target_image_count
+        return content_txt_positive, content_txt_positive_with_default, \
+               content_txt_negative, content_txt_negative_with_default, \
+               target_image_count
 
     def extract_and_normalize(self, html_content):
         logger.info(f'html : {html_content}')

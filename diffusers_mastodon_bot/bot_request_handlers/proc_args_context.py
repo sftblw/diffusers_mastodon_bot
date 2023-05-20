@@ -5,7 +5,8 @@ from dataclasses import dataclass
 
 class Prompts(TypedDict):
     positive: str
-    negative: str
+    positive_with_default: str
+    negative: Optional[str]
     negative_with_default: Optional[str]
 
 
