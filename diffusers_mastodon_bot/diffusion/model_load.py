@@ -51,6 +51,7 @@ def _create_diffusers_pipeline(conf: PipelineConf) -> Tuple[StableDiffusionLpw, 
     )
 
     pipe = pipe.to(conf.device_name)
+    pipe.unet = torch.compile(pipe.unet)
     pipe.enable_attention_slicing()
     
     if conf.vae_enable_tiling:
