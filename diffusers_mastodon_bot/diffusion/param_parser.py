@@ -211,23 +211,29 @@ class ParamParser:
             if value is None: return False
             elif len(value.strip()) == 0: return False
             return True
+        
+        def as_string(value: Optional[str]):
+            if value is None:
+                return ''
+            else:
+                return value
 
         if has_some_text(self.prompt_conf.default_positive_prompt) \
             and not ignore_default_positive_prompt:
             
             content_txt_positive_with_default = (
-                content_txt_positive
-                if content_txt_positive is not None
-                else f'{self.prompt_conf.default_positive_prompt} {content_txt_positive}'
+                as_string(self.prompt_conf.default_positive_prompt)
+                + ' '
+                + as_string(content_txt_positive)
             ).strip()
 
         if has_some_text(self.prompt_conf.default_negative_prompt) \
             and not ignore_default_negative_prompt:
             
             content_txt_negative_with_default = (
-                content_txt_negative
-                if content_txt_negative is not None
-                else f'{self.prompt_conf.default_negative_prompt} {content_txt_negative}'
+                as_string(self.prompt_conf.default_negative_prompt)
+                + ' '
+                + as_string(content_txt_negative)
             ).strip()
 
         return content_txt_positive, content_txt_positive_with_default, \

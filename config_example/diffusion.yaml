@@ -30,6 +30,10 @@ prompt_args:
   allow_ignore_default_negative_prompt: false
 
 prompt:
+  # positive promt which is added by default (as a prefix of request),
+  # helpful for people without prompting knowledges
+  default_positive_prompt: >
+    ((masterpice, best quality)), 
   # negative prompt which is added by default (as a prefix of request),
   # since there is limited space on the social note in general
   default_negative_prompt: >
@@ -39,7 +43,7 @@ prompt:
     extra face, (double head), (extra head), ((extra feet)), monster, logo, cropped,
     worst quality, jpeg, humpbacked, long body, long neck, ((jpeg artifacts)), deleted,
     old, oldest, ((censored)), ((bad aesthetic)), (mosaic censoring, bar censor, blur censor),
-    signature, watermark
+    signature, watermark, 
 
   # keywords to filter out from positive, as regex.
   # for complex regex, do not use quote
