@@ -38,9 +38,11 @@ def _create_diffusers_pipeline(conf: PipelineConf) -> Tuple[StableDiffusionLpw, 
         "scheduler": conf.scheduler.value.from_pretrained(conf.pretrained_model_name_or_path, subfolder="scheduler"),
     }
 
-    if conf.use_safety_checker:
+    logger.info('use_safety_checker : ' + str(conf.use_safety_checker))
+    if conf.use_safety_checker == False:
         pipe_kwargs['safety_checker'] = None
-        pipe_kwargs['requires_safety_checker'] = False
+        pipe_kwargs['feature_extractor'] = None
+        pipe_kwargs['requires_safety_checker'] = True # to warn
     if conf.revision is not None:
         pipe_kwargs['revision'] = conf.revision
 
