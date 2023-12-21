@@ -8,30 +8,17 @@ from diffusers import AutoencoderKL
 import torch
 from transformers import CLIPTextModel, CLIPTokenizer
 
-from diffusers_mastodon_bot.community_pipeline.lpw_stable_diffusion \
-    import StableDiffusionLongPromptWeightingPipeline as StableDiffusionLpw
 from diffusers_mastodon_bot.conf.diffusion.embeddings_conf import EmbeddingsConf
 from diffusers_mastodon_bot.conf.diffusion.pipeline_conf import PipelineConf
 from diffusers_mastodon_bot.diffusion.custom_token_helper import CustomTokenHelper
 from diffusers_mastodon_bot.diffusion.pipe_info import PipeInfo
+from diffusers import DiffusionPipeline
+
 
 logger = logging.getLogger(__name__)
 
 
-def _enable_xformers(pipe: StableDiffusionLpw):
-    if is_xformers_available():
-        try:
-            pipe.unet.enable_xformers_memory_efficient_attention()
-        except Exception as e:
-            logger.warning(
-                "Could not enable memory efficient attention. Make sure xformers is installed"
-                f" correctly and a GPU is available: {e}"
-            )
-    else:
-        logger.info('xformers is not available. not enabling it. ("xformers" gives performance boost)')
-
-
-def _create_diffusers_pipeline(conf: PipelineConf) -> Tuple[StableDiffusionLpw, Dict[str, Any]]:
+def _create_diffusers_pipeline(conf: PipelineConf) -> Tuple[Any, Dict[str, Any]]:
     pipe_kwargs = {
         "pretrained_model_name_or_path": conf.pretrained_model_name_or_path,
         "torch_dtype": torch.float16 if conf.torch_dtype == 'torch.float16' else torch.float32,
@@ -46,17 +33,24 @@ def _create_diffusers_pipeline(conf: PipelineConf) -> Tuple[StableDiffusionLpw, 
     if conf.revision is not None:
         pipe_kwargs['revision'] = conf.revision
 
-    pipe: StableDiffusionLpw = StableDiffusionLpw.from_pretrained(
+    pipe_kwargs['custom_pipeline'] = conf.custom_pipeline or "lpw_stable_diffusion"
+    pipe_kwargs['variant'] = conf.variant or None
+
+    pipe = DiffusionPipeline.from_pretrained(
         **pipe_kwargs
     )
 
     pipe = pipe.to(conf.device_name)
-    pipe.unet = torch.compile(pipe.unet)
+
     pipe.enable_attention_slicing()
     
     if conf.vae_enable_tiling:
         vae: AutoencoderKL = pipe.vae
         vae.enable_tiling()
+
+    # pipe.vae = torch.compile(pipe.vae, fullgraph=False)
+    # pipe.unet = torch.compile(pipe.unet)
+    # pipe(prompt="test", num_inference_steps=1)
 
     pipe_kwargs_info = pipe_kwargs.copy()
 
@@ -135,8 +129,6 @@ class ModelLoader:
             -> PipeInfo:
 
         pipe, pipe_kwargs_info = _create_diffusers_pipeline(pipe_conf)
-
-        _enable_xformers(pipe)
 
         custom_token_helper = CustomTokenHelper(
             prefix=embeddings_conf.prefix,

@@ -8,7 +8,6 @@ from mastodon import Mastodon
 
 from diffusers_mastodon_bot.app_stream_listener import AppStreamListener
 from diffusers_mastodon_bot.bot_request_handlers.bot_request_handler import BotRequestHandler
-from diffusers_mastodon_bot.bot_request_handlers.game.diffuse_game_handler import DiffuseGameHandler
 from diffusers_mastodon_bot.bot_request_handlers.diffuse_me_handler import DiffuseMeHandler
 from diffusers_mastodon_bot.bot_request_handlers.diffuse_it_handler import DiffuseItHandler
 from diffusers_mastodon_bot.conf.app.app_conf import AppConf
@@ -90,12 +89,6 @@ def main():
             pipe_info=pipe_info,
             tag_name='diffuse_it'
         ),
-        DiffuseGameHandler(
-            pipe_info=pipe_info,
-            tag_name='diffuse_game',
-            messages=locale_res.diffusion_game,  # type: ignore
-            response_duration_sec=60 * 30
-        )
     ]  # type: ignore
 
     logger.info('creating listener')

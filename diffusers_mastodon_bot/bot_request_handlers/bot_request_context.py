@@ -4,6 +4,32 @@ from mastodon import Mastodon
 from diffusers_mastodon_bot.bot_context import BotContext
 from typing import *
 
+visibility_to_int = {
+    'direct': 0,
+    'private': 1,
+    'unlisted': 2,
+    'public': 3
+}
+int_to_visibility = { val: key for key, val in visibility_to_int.items() }
+
+
+def wrap_visiblity_min_max(min: Optional[str], max: Optional[str], cur: str) -> str:
+    cur_int = (
+        visibility_to_int[cur]
+        if cur in visibility_to_int.keys()
+        else visibility_to_int['unlisted']
+    )
+
+    min_int = visibility_to_int[min or 'direct']
+    max_int = visibility_to_int[max or 'public']
+
+    if cur_int > max_int:
+        cur_int = max_int
+    if cur_int < min_int:
+        cur_int = min_int
+
+    return int_to_visibility[cur_int]
+
 
 class BotRequestContext:
     def __init__(self,
@@ -15,12 +41,13 @@ class BotRequestContext:
         self.mastodon: Mastodon = mastodon
         self.bot_ctx = bot_ctx
 
-        self.reply_visibility = status['visibility']
-        if self.reply_visibility == 'public' or self.reply_visibility == 'direct':
-            self.reply_visibility = 'unlisted'
-        self.reply_visibility = 'unlisted'
 
-        # [{'name': 'testasdf', 'url': 'https://don.naru.cafe/tags/testasdf'}]
+        self.reply_visibility = wrap_visiblity_min_max(
+            min = bot_ctx.min_visibility,
+            max = bot_ctx.max_visibility,
+            cur = status['visibility']
+        )
+
         self.tag_name_list = set(map(lambda tag: tag['name'], status['tags']))
 
         self.payload: Dict[typing.Type, Dict[str, Any]] = {}

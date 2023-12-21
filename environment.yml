@@ -1,0 +1,31 @@
+channels:
+  - conda-forge
+  - nvidia
+  - pytorch
+dependencies:
+  - python>=3.11,<3.12
+  # torch
+  - pytorch::pytorch>=2.1
+  - pytorch::pytorch-cuda=11.8
+  - transformers
+  - diffusers < 0.25, >= 0.24
+  - optimum
+  - safetensors
+  - ftfy
+  - spacy
+  - pillow
+  - beautifulsoup4 >= 4
+  - requests
+  - scipy
+  - accelerate
+  - tensorboard
+
+  # pip
+  - pip
+  - pip:
+    - Mastodonplus.py >= 1.5.5, < 2.0
+    - omegaconf >= 2.3.0
+    - fluent_compiler >= 0.3
+    - google-re2 >= 1.0
+    - torchsde
+    # additional (can be disabled)

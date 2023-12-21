@@ -54,6 +54,8 @@ class AppStreamListener(mastodon.StreamListener):
             image_gen_conf=self.app_conf.image_gen,
             locale_res=self.locale_res,
             default_visibility=app_conf.behavior.default_visibility,
+            max_visibility=app_conf.behavior.max_visibility,
+            min_visibility=app_conf.behavior.min_visibility,
             device_name=self.diffusion_conf.device
         )
 

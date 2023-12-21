@@ -12,6 +12,8 @@ class BotContext:
                  image_gen_conf: ImageGenConf,
                  locale_res: LocaleRes,
                  default_visibility: str,
+                 max_visibility: Optional[str],
+                 min_visibility: Optional[str],
                  device_name: str
                  ):
         self.bot_acct_url = bot_acct_url
@@ -21,4 +23,6 @@ class BotContext:
         self.locale_res = locale_res
 
         self.default_visibility = default_visibility
+        self.max_visibility = max_visibility
+        self.min_visibility = min_visibility
         self.device_name = device_name

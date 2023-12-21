@@ -13,3 +13,5 @@ class PipelineConf:
     device_name: str = 'cuda'
     use_safety_checker: bool = True
     vae_enable_tiling: bool = True
+    custom_pipeline: Optional[str] = None
+    variant: Optional[str] = None

@@ -70,7 +70,7 @@ class DiffuseItHandler(BotRequestHandler):
         positive_input_form = args_ctx.prompts['positive']
         negative_input_form = args_ctx.prompts['negative']
 
-        in_progress_status = ctx.reply_to(ctx.status, 'processing...', keep_context=False)
+        in_progress_status = ctx.reply_to(ctx.status, 'processing...', keep_context=False, visibility=ctx.reply_visibility)
 
         if 'media_attachments' not in ctx.status.keys() or len(ctx.status['media_attachments']) == 0:
             ctx.reply_to(ctx.status, 'no attachment found')
@@ -184,7 +184,10 @@ class DiffuseItHandler(BotRequestHandler):
         )
 
         if behavior_conf.tag_behind_on_image_post:
-            ctx.mastodon.status_reblog(replied_status['id'])
+            try:
+                ctx.mastodon.status_reblog(replied_status['id'])
+            except:
+                pass
 
         if behavior_conf.delete_processing_message:
             ctx.mastodon.status_delete(in_progress_status)

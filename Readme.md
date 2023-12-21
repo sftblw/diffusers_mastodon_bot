@@ -19,7 +19,7 @@ a quick and dirty bot, running stable diffuser, via huggingface diffusers
 - image generation: mentioning the bot with `#diffuse_me` and prompt
   - If you are the bot, You can do it without mention
 - image2image: mention with `#diffuse_it` and one attachment image
-- image generation game: mentioning the bot in DM with `#diffuse_game` and prompt
+- ~~image generation game~~ removed
 
 ```text
 @bot@example.com 
@@ -50,3 +50,5 @@ see `config_example`. copy-paste it to `config` and modify from there.
 ## misc
 
 This software contains source from `huggingface/diffusers`, which is under Apache License 2.
+
+XL model will not use batching.

@@ -16,8 +16,6 @@ import torch
 from transformers import CLIPTokenizer, CLIPTextModel
 from transformers.modeling_outputs import BaseModelOutputWithPooling
 
-from diffusers_mastodon_bot.community_pipeline.lpw_stable_diffusion \
-    import StableDiffusionLongPromptWeightingPipeline as StableDiffusionLpw
 from diffusers_mastodon_bot.bot_request_handlers.bot_request_context import BotRequestContext
 from diffusers_mastodon_bot.bot_request_handlers.proc_args_context import ProcArgsContext
 from diffusers_mastodon_bot.diffusion.pipe_info import PipeInfo
@@ -180,24 +178,38 @@ class DiffusionRunner:
 
         while left_images_count > 0:
             cur_process_count = min(image_gen_conf.max_batch_process, left_images_count)
+
+            if pipe_info.pipe.__class__.__name__ == "SDXLLongPromptWeightingPipeline":
+                cur_process_count = 1
+
+            positive_prompt_arg = (
+                [positive_prompt] * cur_process_count
+                if cur_process_count > 1
+                else positive_prompt
+            )
+
+            negative_prompt_arg = (
+                [negative_prompt] * cur_process_count
+                if cur_process_count > 1
+                else negative_prompt
+            )
+
             logger.info(
                 f"processing {args_ctx.target_image_count - left_images_count + 1} of {args_ctx.target_image_count}, "
                 + f"by {cur_process_count}")
 
-            pipe: StableDiffusionLpw = pipe_info.pipe
-            pipe_results = pipe.text2img(
-                [positive_prompt] * cur_process_count,
-                negative_prompt=([negative_prompt] * cur_process_count
-                                 if negative_prompt is not None
-                                 else None),
+            pipe = pipe_info.pipe
+            pipe_results = pipe(
+                prompt=positive_prompt_arg,
+                negative_prompt=negative_prompt_arg,
                 **manual_proc_kwargs
             )
 
             generated_images_raw_pil.extend(pipe_results.images)
-            if pipe_results.nsfw_content_detected:
-                has_any_nsfw = True
+            # if pipe_results.nsfw_content_detected:
+            #     has_any_nsfw = True
 
-            left_images_count -= image_gen_conf.max_batch_process
+            left_images_count -= cur_process_count
 
         return generated_images_raw_pil, has_any_nsfw
 
@@ -267,27 +279,41 @@ class DiffusionRunner:
 
         while left_images_count > 0:
             cur_process_count = min(image_gen_conf.max_batch_process, left_images_count)
+
+            if pipe_info.pipe.__class__.__name__ == "SDXLLongPromptWeightingPipeline":
+                cur_process_count = 1
+
+            positive_prompt_arg = (
+                [positive_prompt] * cur_process_count
+                if cur_process_count > 1
+                else positive_prompt
+            )
+
+            negative_prompt_arg = (
+                [negative_prompt] * cur_process_count
+                if cur_process_count > 1
+                else negative_prompt
+            )
+
             logger.info(
                 f"processing {args_ctx.target_image_count - left_images_count + 1} of {args_ctx.target_image_count}, "
                 + f"by {cur_process_count}")
 
-            pipe: StableDiffusionLpw = pipe_info.pipe
+            pipe = pipe_info.pipe
 
             pipe_results = pipe(
                 image=init_image,
-                prompt=[positive_prompt] * cur_process_count,
-                negative_prompt=([negative_prompt] * cur_process_count
-                                 if negative_prompt is not None
-                                 else None),
+                prompt=positive_prompt_arg,
+                negative_prompt=negative_prompt_arg,
                 generator=generator,
                 **manual_proc_kwargs
             )
 
             generated_images_raw_pil.extend(pipe_results.images)
-            if pipe_results.nsfw_content_detected:
-                has_any_nsfw = True
+            # if pipe_results.nsfw_content_detected:
+            #     has_any_nsfw = True
 
-            left_images_count -= image_gen_conf.max_batch_process
+            left_images_count -= cur_process_count
 
         return generated_images_raw_pil, has_any_nsfw
 

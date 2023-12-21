@@ -1,9 +1,11 @@
 from dataclasses import dataclass
-
+from typing import *
 
 @dataclass
 class BehaviorConf:
     default_visibility: str = 'unlisted'
+    max_visibility: Optional[str] = 'unlisted'
+    min_visibility: Optional[str] = 'unlisted'
 
     save_image: bool = True
 

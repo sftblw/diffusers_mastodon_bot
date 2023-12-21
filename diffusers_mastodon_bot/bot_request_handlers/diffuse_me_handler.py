@@ -73,7 +73,10 @@ class DiffuseMeHandler(BotRequestHandler):
         )
 
         if behavior_conf.tag_behind_on_image_post:
-            ctx.mastodon.status_reblog(replied_status['id'])
+            try:
+                ctx.mastodon.status_reblog(replied_status['id'])
+            except:
+                pass
 
         if behavior_conf.delete_processing_message:
             ctx.mastodon.status_delete(in_progress_status)

@@ -5,6 +5,8 @@ locale: 'en-US'
 behavior:
   # default visibility of any toot except some situations
   default_visibility: 'unlisted'
+  min_visibility: 'direct'
+  max_visibility: 'unlisted'
 
   # save generated images on local folder
   save_image: true
